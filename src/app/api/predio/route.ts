@@ -7,31 +7,49 @@ export async function GET(request: Request) {
   const predio = searchParams.get('predio');
 
   if (!comuna || !manzana || !predio) {
-    return NextResponse.json({ error: 'Faltan parámetros requeridos (comuna, manzana, predio)' }, { status: 400 });
+    return NextResponse.json({ error: 'Faltan parámetros requeridos' }, { status: 400 });
   }
 
   const apiKey = process.env.BASEAPI_KEY;
 
   if (!apiKey) {
-    // Si no hay API Key, retornamos datos falsos (mock) para que puedas probar el diseño del MVP
+    // MOCK DATA: Estructura fiel a las imágenes que enviaste para que pruebes el diseño sin gastar saldo
     return NextResponse.json({
-      comuna,
+      comuna: `${comuna} (15108)`,
       manzana,
       predio,
-      rol: `${manzana}-${predio}`,
-      direccion: `Av. Ficticia 123, ${comuna}`,
-      avaluoTotal: 125500000,
-      avaluoExento: 40000000,
-      destino: "Habitacional",
-      superficie: 95,
-      latitud: -33.456,
-      longitud: -70.654,
-      nota: "Datos de prueba (Añade BASEAPI_KEY en .env.local para datos reales)"
+      direccion: "EL CONVENTO 715 LT. 56 A",
+      region: "Metropolitana",
+      
+      identificacion: {
+        ubicacion: "Urbano",
+        destino: "Habitacional",
+        serie: "No Serie",
+        aseo: "Sí",
+        periodo: "2025S2"
+      },
+      
+      avaluos: {
+        total: 351397734,
+        exento: 59143557,
+        fiscal: 351397734,
+        contribucionSemestral: 1479334,
+        cuotaTrimestral: 739667,
+        terminoExencion: "Sin exención"
+      },
+      
+      superficies: {
+        efectiva: 423,
+        terreno: 423,
+        construida: 185
+      },
+      
+      variacion: "+69.8%",
+      _mock: true // Indicador de que es data de prueba
     });
   }
 
   try {
-    // Usamos la URL estándar que BaseAPI suele ocupar. Puede requerir ajuste exacto según tu plan.
     const url = `https://api.baseapi.cl/v1/sii/avaluo/predio/${encodeURIComponent(comuna)}/${manzana}/${predio}`;
     const response = await fetch(url, {
       headers: {
