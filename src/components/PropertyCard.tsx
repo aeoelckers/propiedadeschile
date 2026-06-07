@@ -20,14 +20,25 @@ export function PropertyCard({ data }: { data: any }) {
     return `${val} m²`;
   };
 
-  // Intentamos estructurar la data basándonos en tu mock/API
+  // Mapeo exacto basado en la documentación oficial de BaseAPI
   const dir = data.direccion || "Dirección no registrada";
-  const comuna = data.comuna || "Comuna desconocida";
-  const region = data.region || "";
+  const comunaNombre = data.comuna?.nombre || data.comuna || "Comuna desconocida";
 
-  const iden = data.identificacion || {};
-  const avals = data.avaluos || {};
-  const sups = data.superficies || {};
+  const avals = {
+    total: data.avaluo?.total,
+    exento: data.avaluo?.exento,
+    afecto: data.avaluo?.afecto,
+    // BaseAPI base response for /avaluo/predio doesn't seem to include contribuciones directly in the snippet,
+    // but we map it if it's there or leave N/A.
+    contribucionSemestral: data.avaluo?.contribucionSemestral || null,
+    cuotaTrimestral: data.avaluo?.cuotaTrimestral || null,
+  };
+
+  const sups = {
+    terreno: data.superficie?.terreno,
+    construida: data.superficie?.construida,
+    efectiva: data.superficie?.construida || data.superficie?.terreno
+  };
 
   return (
     <div className="w-full max-w-5xl mt-12 bg-[#0c0c0c] rounded-xl shadow-2xl overflow-hidden font-sans border border-slate-800">
@@ -35,13 +46,12 @@ export function PropertyCard({ data }: { data: any }) {
       {/* HEADER UBICACIÓN */}
       <div className="px-6 py-4 border-b border-slate-800">
         <h2 className="text-slate-300 text-lg flex items-center gap-2">
-          {dir} <span className="text-slate-500">• {comuna}{region ? `, ${region}` : ""}</span>
+          {dir} <span className="text-slate-500">• {comunaNombre}</span>
         </h2>
       </div>
 
       {/* MAPA PLACEHOLDER (Fase 2) */}
       <div className="w-full h-48 bg-slate-800 relative flex items-center justify-center overflow-hidden border-b border-slate-800">
-        {/* Aquí en Fase 2 iría el mapa real de Leaflet/WMS */}
         <div className="absolute inset-0 opacity-20 bg-[url('https://maps.wikimedia.org/osm-intl/12/1236/2485.png')] bg-cover bg-center"></div>
         <div className="z-10 flex flex-col items-center">
           <MapPin className="w-8 h-8 text-blue-500 mb-2 drop-shadow-lg" />
@@ -54,19 +64,19 @@ export function PropertyCard({ data }: { data: any }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-[#151515] p-4 rounded-xl border border-slate-800/60">
             <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Avalúo Total</p>
-            <p className="text-[#c1ff00] text-xl font-bold">{formatCLP(avals.total || data.avaluoTotal)}</p>
+            <p className="text-[#c1ff00] text-xl font-bold">{formatCLP(avals.total)}</p>
           </div>
           <div className="bg-[#151515] p-4 rounded-xl border border-slate-800/60">
-            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Contribución Sem.</p>
-            <p className="text-[#c1ff00] text-xl font-bold">{formatCLP(avals.contribucionSemestral)}</p>
+            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Avalúo Afecto</p>
+            <p className="text-[#c1ff00] text-xl font-bold">{formatCLP(avals.afecto)}</p>
           </div>
           <div className="bg-[#151515] p-4 rounded-xl border border-slate-800/60">
-            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Superficie</p>
-            <p className="text-[#c1ff00] text-xl font-bold">{formatM2(sups.terreno || sups.efectiva || data.superficie)}</p>
+            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Superficie Terreno</p>
+            <p className="text-[#c1ff00] text-xl font-bold">{formatM2(sups.terreno)}</p>
           </div>
           <div className="bg-[#151515] p-4 rounded-xl border border-slate-800/60">
-            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Variación 2018-2025</p>
-            <p className="text-[#00ff88] text-xl font-bold">{data.variacion || "+0.0%"}</p>
+            <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Área Homogénea</p>
+            <p className="text-[#00ff88] text-xl font-bold">{data.areaHomogenea || "N/A"}</p>
           </div>
         </div>
 
@@ -79,7 +89,7 @@ export function PropertyCard({ data }: { data: any }) {
           <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Comuna</p>
-              <p className="text-slate-200 text-sm">{comuna}</p>
+              <p className="text-slate-200 text-sm">{comunaNombre} ({data.comuna?.codigo})</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Manzana</p>
@@ -91,23 +101,23 @@ export function PropertyCard({ data }: { data: any }) {
             </div>
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Periodo</p>
-              <p className="text-slate-200 text-sm">{iden.periodo || "N/A"}</p>
+              <p className="text-slate-200 text-sm">{data.periodo || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Ubicación</p>
-              <p className="text-slate-200 text-sm">{iden.ubicacion || "N/A"}</p>
+              <p className="text-slate-200 text-sm">{data.ubicacion || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Destino</p>
-              <p className="text-[#c1ff00] text-sm">{iden.destino || data.destino || "N/A"}</p>
+              <p className="text-[#c1ff00] text-sm">{data.destino || "N/A"}</p>
             </div>
             <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Serie</p>
-              <p className="text-slate-200 text-sm">{iden.serie || "N/A"}</p>
+              <p className="text-slate-500 text-xs uppercase mb-1">Reavalúo EAC</p>
+              <p className="text-slate-200 text-sm">{data.reavaluo?.eac || "N/A"}</p>
             </div>
             <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Aseo</p>
-              <p className="text-slate-200 text-sm">{iden.aseo || "N/A"}</p>
+              <p className="text-slate-500 text-xs uppercase mb-1">Reavalúo Año</p>
+              <p className="text-slate-200 text-sm">{data.reavaluo?.ano || "N/A"}</p>
             </div>
           </div>
         </div>
@@ -116,7 +126,7 @@ export function PropertyCard({ data }: { data: any }) {
         <div className="bg-[#151515] rounded-xl border border-slate-800/60 mb-4 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-[#c1ff00]" />
-            <h3 className="text-[#c1ff00] font-semibold text-sm">Avalúos y Contribuciones</h3>
+            <h3 className="text-[#c1ff00] font-semibold text-sm">Avalúos</h3>
           </div>
           <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
             <div>
@@ -128,44 +138,47 @@ export function PropertyCard({ data }: { data: any }) {
               <p className="text-slate-200 text-sm">{formatCLP(avals.exento)}</p>
             </div>
             <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Avalúo Fiscal</p>
-              <p className="text-slate-200 text-sm">{formatCLP(avals.fiscal)}</p>
-            </div>
-            <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Contribución Semestral</p>
-              <p className="text-[#c1ff00] font-bold text-sm">{formatCLP(avals.contribucionSemestral)}</p>
-            </div>
-            <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Cuota Trimestral</p>
-              <p className="text-slate-200 text-sm">{formatCLP(avals.cuotaTrimestral)}</p>
-            </div>
-            <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Año Término Exención</p>
-              <p className="text-slate-200 text-sm">{avals.terminoExencion || "N/A"}</p>
+              <p className="text-slate-500 text-xs uppercase mb-1">Avalúo Afecto</p>
+              <p className="text-slate-200 text-sm">{formatCLP(avals.afecto)}</p>
             </div>
           </div>
         </div>
 
         {/* SECCIÓN 3: SUPERFICIE */}
-        <div className="bg-[#151515] rounded-xl border border-slate-800/60 overflow-hidden">
+        <div className="bg-[#151515] rounded-xl border border-slate-800/60 overflow-hidden mb-4">
           <div className="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
             <Ruler className="w-4 h-4 text-[#c1ff00]" />
             <h3 className="text-[#c1ff00] font-semibold text-sm">Superficie</h3>
           </div>
           <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
             <div>
-              <p className="text-slate-500 text-xs uppercase mb-1">Superficie Efectiva</p>
-              <p className="text-[#c1ff00] font-bold text-sm">{formatM2(sups.efectiva)}</p>
-            </div>
-            <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Superficie Terreno</p>
-              <p className="text-slate-200 text-sm">{formatM2(sups.terreno)}</p>
+              <p className="text-[#c1ff00] font-bold text-sm">{formatM2(sups.terreno)}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs uppercase mb-1">Superficie Construida</p>
               <p className="text-slate-200 text-sm">{formatM2(sups.construida)}</p>
             </div>
           </div>
+        </div>
+
+        {/* RAW DATA DUMP */}
+        <div className="mt-4 border border-slate-800 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowTechnical(!showTechnical)}
+            className="w-full px-4 py-3 bg-[#111] hover:bg-[#151515] transition-colors flex items-center justify-between text-sm font-medium text-slate-400"
+          >
+            <span>Ver Respuesta JSON Completa (Debug)</span>
+            {showTechnical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          
+          {showTechnical && (
+            <div className="p-4 bg-black overflow-x-auto">
+              <pre className="text-xs text-green-400 font-mono">
+                {JSON.stringify(data, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
 
       </div>

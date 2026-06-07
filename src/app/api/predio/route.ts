@@ -13,44 +13,47 @@ export async function GET(request: Request) {
   const apiKey = process.env.BASEAPI_KEY;
 
   if (!apiKey) {
-    // MOCK DATA: Estructura fiel a las imágenes que enviaste para que pruebes el diseño sin gastar saldo
+    // MOCK DATA: Estructura 100% fiel al JSON oficial de BaseAPI
     return NextResponse.json({
-      comuna: `${comuna} (15108)`,
-      manzana,
-      predio,
-      direccion: "EL CONVENTO 715 LT. 56 A",
-      region: "Metropolitana",
-      
-      identificacion: {
-        ubicacion: "Urbano",
-        destino: "Habitacional",
-        serie: "No Serie",
-        aseo: "Sí",
-        periodo: "2025S2"
+      "rol": `${manzana}-${predio}`,
+      "comuna": {
+        "codigo": comuna,
+        "nombre": "SANTIAGO (MOCK)"
       },
-      
-      avaluos: {
-        total: 351397734,
-        exento: 59143557,
-        fiscal: 351397734,
-        contribucionSemestral: 1479334,
-        cuotaTrimestral: 739667,
-        terminoExencion: "Sin exención"
+      "manzana": manzana,
+      "predio": predio,
+      "direccion": "ALAMEDA LIB. B. OHIGGINS 3 LC 1 (MOCK)",
+      "destino": "COMERCIO",
+      "ubicacion": "URBANA",
+      "periodo": "PRIMER SEMESTRE DE 2026",
+      "avaluo": {
+        "total": 127479603,
+        "afecto": 127479603,
+        "exento": 0
       },
-      
-      superficies: {
-        efectiva: 423,
-        terreno: 423,
-        construida: 185
+      "superficie": {
+        "terreno": 0,
+        "construida": 0,
+        "construidaTresLados": 0,
+        "unidad": "m²"
       },
-      
-      variacion: "+69.8%",
-      _mock: true // Indicador de que es data de prueba
+      "areaHomogenea": "XMM025",
+      "reavaluo": {
+        "eac": 14,
+        "ano": 2022,
+        "descripcion": "RAV NO AGRICOLA 2022"
+      },
+      "coordenadas": {
+        "latitud": -33.436995,
+        "longitud": -70.635638
+      },
+      "existe": true,
+      "_mock": true
     });
   }
 
   try {
-    const url = `https://api.baseapi.cl/api/v1/sii/avaluo/predio/${encodeURIComponent(comuna)}/${manzana}/${predio}`;
+    const url = `https://api.baseapi.cl/api/v1/sii/avaluo/predio?comuna=${comuna}&manzana=${manzana}&predio=${predio}`;
     const response = await fetch(url, {
       headers: {
         'x-api-key': apiKey,
