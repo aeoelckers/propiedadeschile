@@ -50,10 +50,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const url = `https://api.baseapi.cl/v1/sii/avaluo/predio/${encodeURIComponent(comuna)}/${manzana}/${predio}`;
+    const url = `https://api.baseapi.cl/api/v1/sii/avaluo/predio/${encodeURIComponent(comuna)}/${manzana}/${predio}`;
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'x-api-key': apiKey,
         'Content-Type': 'application/json'
       }
     });
