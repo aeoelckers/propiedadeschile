@@ -30,10 +30,17 @@ export default function Home() {
         const regData = await regRes.json();
         const comData = await comRes.json();
 
-        if (regData.success && regData.data) {
+        if (regData.success && Array.isArray(regData.data)) {
           setRegiones(regData.data);
+        } else if (Array.isArray(regData)) {
+          setRegiones(regData);
         }
-        if (comData.success && comData.data) {
+
+        if (comData.success && Array.isArray(comData.data)) {
+          setComunasAll(comData.data);
+        } else if (Array.isArray(comData)) {
+          setComunasAll(comData);
+        } else if (comData.data && Array.isArray(comData.data)) {
           setComunasAll(comData.data);
         }
       } catch (err) {
@@ -47,13 +54,9 @@ export default function Home() {
 
   // Filtrar comunas cuando cambia la región
   useEffect(() => {
-    if (selectedRegionId) {
-      // BaseAPI a veces manda id_region o cod_region en cada comuna. 
-      // Si la API no lo trae, esto asume que hay un campo que las asocia.
-      // Ajusta 'region_codigo' o 'id_region' según la estructura real.
-      // Si comunasAll no tiene la región, podríamos necesitar un fetch a /api/comunas?region=...
-      const filtradas = comunasAll.filter((c: any) => c.region_codigo === selectedRegionId || c.id_region === selectedRegionId || true); // Default a todas por el mock MVP
-      setComunasFiltradas(comunasAll); // Temporal: las muestra todas hasta ajustar con la API real
+    if (selectedRegionId && Array.isArray(comunasAll)) {
+      // Temporalmente muestra todas las comunas seguras para evitar crasheos si el formato varía
+      setComunasFiltradas(comunasAll);
     } else {
       setComunasFiltradas([]);
     }
