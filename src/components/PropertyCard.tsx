@@ -2,7 +2,8 @@ import { MapPin, DollarSign, Ruler, ChevronDown, ChevronUp } from "lucide-react"
 import { useState } from "react";
 
 export function PropertyCard({ data }: { data: any }) {
-  const [showTechnical, setShowTechnical] = useState(false);
+  // BaseAPI devuelve { success: true, data: { ... } }
+  const d = data.data || data;
 
   // Formateador de CLP
   const formatCLP = (amount?: number) => {
@@ -21,21 +22,21 @@ export function PropertyCard({ data }: { data: any }) {
   };
 
   // Mapeo exacto basado en la documentación oficial de BaseAPI
-  const dir = data.direccion || "Dirección no registrada";
-  const comunaNombre = data.comuna?.nombre || data.comuna || "Comuna desconocida";
+  const dir = d.direccion || "Dirección no registrada";
+  const comunaNombre = d.comuna?.nombre || d.comuna || "Comuna desconocida";
 
   const avals = {
-    total: data.avaluo?.total,
-    exento: data.avaluo?.exento,
-    afecto: data.avaluo?.afecto,
-    contribucionSemestral: data.avaluo?.contribucionSemestral || null,
-    cuotaTrimestral: data.avaluo?.cuotaTrimestral || null,
+    total: d.avaluo?.total,
+    exento: d.avaluo?.exento,
+    afecto: d.avaluo?.afecto,
+    contribucionSemestral: d.avaluo?.contribucionSemestral || null,
+    cuotaTrimestral: d.avaluo?.cuotaTrimestral || null,
   };
 
   const sups = {
-    terreno: data.superficie?.terreno,
-    construida: data.superficie?.construida,
-    efectiva: data.superficie?.construida || data.superficie?.terreno
+    terreno: d.superficie?.terreno,
+    construida: d.superficie?.construida,
+    efectiva: d.superficie?.construida || d.superficie?.terreno
   };
 
   return (
@@ -66,7 +67,7 @@ export function PropertyCard({ data }: { data: any }) {
           </div>
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
             <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Área Homogénea</p>
-            <p className="text-slate-700 text-2xl font-black">{data.areaHomogenea || "N/A"}</p>
+            <p className="text-slate-700 text-2xl font-black">{d.areaHomogenea || "N/A"}</p>
           </div>
         </div>
 
@@ -79,31 +80,31 @@ export function PropertyCard({ data }: { data: any }) {
           <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Comuna</p>
-              <p className="text-slate-900 font-medium text-sm">{comunaNombre} ({data.comuna?.codigo})</p>
+              <p className="text-slate-900 font-medium text-sm">{comunaNombre} ({d.comuna?.codigo})</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Rol de Avalúo</p>
-              <p className="text-slate-900 font-medium text-sm">{data.manzana}-{data.predio}</p>
+              <p className="text-slate-900 font-medium text-sm">{d.manzana}-{d.predio}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Periodo</p>
-              <p className="text-slate-900 font-medium text-sm">{data.periodo || "N/A"}</p>
+              <p className="text-slate-900 font-medium text-sm">{d.periodo || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Ubicación</p>
-              <p className="text-slate-900 font-medium text-sm">{data.ubicacion || "N/A"}</p>
+              <p className="text-slate-900 font-medium text-sm">{d.ubicacion || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Destino</p>
-              <p className="text-blue-700 font-bold text-sm">{data.destino || "N/A"}</p>
+              <p className="text-blue-700 font-bold text-sm">{d.destino || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Reavalúo EAC</p>
-              <p className="text-slate-900 font-medium text-sm">{data.reavaluo?.eac || "N/A"}</p>
+              <p className="text-slate-900 font-medium text-sm">{d.reavaluo?.eac || "N/A"}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Reavalúo Año</p>
-              <p className="text-slate-900 font-medium text-sm">{data.reavaluo?.ano || "N/A"}</p>
+              <p className="text-slate-900 font-medium text-sm">{d.reavaluo?.ano || "N/A"}</p>
             </div>
           </div>
         </div>
@@ -149,26 +150,6 @@ export function PropertyCard({ data }: { data: any }) {
             </div>
           </div>
         </div>
-
-        {/* RAW DATA DUMP */}
-        <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-          <button
-            onClick={() => setShowTechnical(!showTechnical)}
-            className="w-full px-4 py-3 hover:bg-slate-100 transition-colors flex items-center justify-between text-sm font-bold text-slate-600"
-          >
-            <span>Ver Respuesta JSON Completa (Debug)</span>
-            {showTechnical ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-          
-          {showTechnical && (
-            <div className="p-4 bg-slate-800 overflow-x-auto">
-              <pre className="text-xs text-emerald-400 font-mono">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
-
       </div>
     </div>
   );
