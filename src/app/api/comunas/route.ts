@@ -22,19 +22,32 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Generalmente es /comunas o se pasan query params. BaseAPI suele traer todas juntas en /comunas
-    const url = 'https://api.baseapi.cl/api/v1/sii/datos/comunas';
-    const response = await fetch(url, {
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json'
+    const urls = regionCodigo 
+      ? [
+          `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
+          `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
+          `https://api.baseapi.cl/api/v1/sii/datos/comunas`
+        ]
+      : ['https://api.baseapi.cl/api/v1/sii/datos/comunas'];
+
+    for (const url of urls) {
+      const response = await fetch(url, {
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Return first successful response that has data
+        if (data.success || Array.isArray(data) || data.comunas || (data.data && Array.isArray(data.data.comunas))) {
+          return NextResponse.json(data);
+        }
       }
-    });
-    const data = await response.json();
+    }
     
-    // Si la API trae todas, podemos filtrarlas aquí si BaseAPI nos da el código de la región
-    // Pero asumiendo que BaseAPI podría retornar un arreglo, lo pasamos al frontend
-    return NextResponse.json(data);
+    return NextResponse.json({ error: 'No se encontraron comunas' }, { status: 404 });
   } catch (error) {
     return NextResponse.json({ error: 'Error fetching comunas' }, { status: 500 });
   }

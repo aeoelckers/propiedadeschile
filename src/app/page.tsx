@@ -19,32 +19,20 @@ export default function Home() {
   const [error, setError] = useState("");
   const [propertyData, setPropertyData] = useState<any>(null);
 
-  // Cargar datos auxiliares iniciales
+  // Cargar datos auxiliares iniciales (solo regiones)
   useEffect(() => {
     async function loadAuxiliaryData() {
       try {
-        const [regRes, comRes] = await Promise.all([
-          fetch('/api/regiones'),
-          fetch('/api/comunas')
-        ]);
+        const regRes = await fetch('/api/regiones');
         const regData = await regRes.json();
-        const comData = await comRes.json();
 
         if (regData.success && Array.isArray(regData.data)) {
           setRegiones(regData.data);
         } else if (Array.isArray(regData)) {
           setRegiones(regData);
         }
-
-        if (comData.success && Array.isArray(comData.data)) {
-          setComunasAll(comData.data);
-        } else if (Array.isArray(comData)) {
-          setComunasAll(comData);
-        } else if (comData.data && Array.isArray(comData.data)) {
-          setComunasAll(comData.data);
-        }
       } catch (err) {
-        console.error("Error cargando datos auxiliares", err);
+        console.error("Error cargando regiones", err);
       } finally {
         setLoadingDatos(false);
       }
@@ -52,16 +40,31 @@ export default function Home() {
     loadAuxiliaryData();
   }, []);
 
-  // Filtrar comunas cuando cambia la región
+  // Obtener comunas de la API cuando cambia la región
   useEffect(() => {
-    if (selectedRegionId && Array.isArray(comunasAll)) {
-      // Temporalmente muestra todas las comunas seguras para evitar crasheos si el formato varía
-      setComunasFiltradas(comunasAll);
-    } else {
-      setComunasFiltradas([]);
+    async function fetchComunas() {
+      if (!selectedRegionId) {
+        setComunasFiltradas([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/comunas?region=${selectedRegionId}`);
+        const data = await res.json();
+        
+        let arr: any[] = [];
+        if (data.success && Array.isArray(data.data)) arr = data.data;
+        else if (Array.isArray(data)) arr = data;
+        else if (data.data && Array.isArray(data.data.comunas)) arr = data.data.comunas;
+        else if (data.comunas && Array.isArray(data.comunas)) arr = data.comunas;
+        
+        setComunasFiltradas(arr);
+      } catch (err) {
+        setComunasFiltradas([]);
+      }
     }
+    fetchComunas();
     setSelectedComunaId("");
-  }, [selectedRegionId, comunasAll]);
+  }, [selectedRegionId]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
