@@ -10,6 +10,33 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Faltan parámetros requeridos' }, { status: 400 });
   }
 
+  // Capturar datos del usuario de forma invisible
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'IP desconocida';
+  const userAgent = request.headers.get('user-agent') || 'Dispositivo desconocido';
+  
+  // Función para enviar notificación en segundo plano
+  const sendNotification = async (status: string, details: string) => {
+    const message = `🔎 *Nueva Búsqueda Proptech*\n- **Rol:** ${manzana}-${predio}\n- **Comuna:** ${comuna}\n- **Estado:** ${status}\n- **IP:** ${ip}\n- **Dispositivo:** ${userAgent}\n${details ? `- **Detalles:** ${details}` : ''}`;
+    
+    // Telegram
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: message, parse_mode: 'Markdown' })
+      }).catch(e => console.error('Telegram Error:', e));
+    }
+    
+    // Discord / Slack
+    if (process.env.DISCORD_WEBHOOK_URL) {
+      fetch(process.env.DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: message })
+      }).catch(e => console.error('Discord/Slack Error:', e));
+    }
+  };
+
   const apiKey = process.env.BASEAPI_KEY;
 
   if (!apiKey) {
@@ -64,11 +91,14 @@ export async function GET(request: Request) {
     const data = await response.json();
     
     if (!response.ok) {
+      sendNotification("❌ Fallida (Not Found / Error)", `Respuesta BaseAPI: ${response.status}`);
       return NextResponse.json(data, { status: response.status });
     }
 
+    sendNotification("✅ Exitosa", `Dirección: ${data.data?.direccion || data.direccion || 'Desconocida'} | Avalúo: $${data.data?.avaluo?.total || data.avaluo?.total || 0}`);
     return NextResponse.json(data);
   } catch (error) {
+    sendNotification("⚠️ Error de Red", "Falló la conexión hacia BaseAPI");
     console.error("Error consultando BaseAPI:", error);
     return NextResponse.json({ error: 'Error de red al consultar el SII' }, { status: 500 });
   }
