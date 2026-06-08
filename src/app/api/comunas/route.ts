@@ -1,36 +1,25 @@
 import { NextResponse } from "next/server";
-import type { Comuna } from "@/lib/baseapi";
-import { extractArray, readResponseBody } from "@/lib/baseapi-response";
-import { fallbackCommunes } from "@/lib/catalog";
+import { readResponseBody } from "@/lib/baseapi-response";
 
-export const dynamic = "force-dynamic";
+function hasComunasPayload(data: unknown) {
+  if (Array.isArray(data)) return data.length > 0;
+  if (typeof data !== "object" || data === null) return false;
 
-const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" };
+  const payload = data as Record<string, unknown>;
+  if (payload.success) return true;
+  if (Array.isArray(payload.comunas)) return true;
+  if (Array.isArray(payload.data)) return true;
 
-interface RegionWithCommunes {
-  codigo: string | number;
-  comunas?: Comuna[];
-}
-
-function normalizeCommunes(payload: unknown, regionCode: string): Comuna[] {
-  const items = extractArray<RegionWithCommunes | Comuna>(payload, "comunas");
-  const containsRegions = items.some(
-    (item) => "comunas" in item && Array.isArray(item.comunas),
+  return (
+    typeof payload.data === "object" &&
+    payload.data !== null &&
+    Array.isArray((payload.data as Record<string, unknown>).comunas)
   );
-
-  if (containsRegions) {
-    const region = (items as RegionWithCommunes[]).find(
-      (item) => String(item.codigo).padStart(2, "0") === regionCode.padStart(2, "0"),
-    );
-    return Array.isArray(region?.comunas) ? region.comunas : [];
-  }
-
-  return items as Comuna[];
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const regionCode = searchParams.get("region")?.trim();
+  const regionCodigo = searchParams.get("region");
   const apiKey = process.env.BASEAPI_KEY;
 
   if (!regionCode) {
@@ -38,23 +27,32 @@ export async function GET(request: Request) {
   }
 
   if (!apiKey) {
-    return NextResponse.json(
-      { success: true, data: fallbackCommunes[regionCode] || [], source: "fallback" },
-      { headers: noStoreHeaders },
-    );
+    if (regionCodigo === "13") {
+      return NextResponse.json({
+        success: true,
+        data: [
+          { codigo: "15108", nombre: "LAS CONDES" },
+          { codigo: "15101", nombre: "SANTIAGO" },
+        ],
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: [{ codigo: "05101", nombre: "VALPARAISO" }],
+    });
   }
 
-  try {
-    const urls = regionCodigo
-      ? [
-          `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
-          `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
-          `https://api.baseapi.cl/api/v1/sii/datos/comunas`
-        ]
-      : ['https://api.baseapi.cl/api/v1/sii/datos/comunas'];
+  const urls = regionCodigo
+    ? [
+        `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
+        `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
+        "https://api.baseapi.cl/api/v1/sii/datos/comunas",
+      ]
+    : ["https://api.baseapi.cl/api/v1/sii/datos/comunas"];
 
-  for (const url of urls) {
-    try {
+  try {
+    for (const url of urls) {
       const response = await fetch(url, {
         cache: "no-store",
         headers: {
@@ -64,9 +62,8 @@ export async function GET(request: Request) {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // Return first successful response that has data
-        if (data.success || Array.isArray(data) || data.comunas || (data.data && Array.isArray(data.data.comunas))) {
+        const data = await readResponseBody(response);
+        if (hasComunasPayload(data)) {
           return NextResponse.json(data);
         }
       }
@@ -82,9 +79,10 @@ export async function GET(request: Request) {
       console.error(`Error consultando comunas en ${url}:`, error);
     }
 
-    return NextResponse.json({ error: 'No se encontraron comunas' }, { status: 404 });
-  } catch {
-    return NextResponse.json({ error: 'Error fetching comunas' }, { status: 500 });
+    return NextResponse.json({ error: "No se encontraron comunas" }, { status: 404 });
+  } catch (error) {
+    console.error("Error fetching comunas:", error);
+    return NextResponse.json({ error: "Error fetching comunas" }, { status: 500 });
   }
 
   return NextResponse.json(
