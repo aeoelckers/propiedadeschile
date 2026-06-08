@@ -24,14 +24,16 @@ type SearchMode = "address" | "role";
 type SearchError = {
   message: string;
   code?: string;
+  details?: string;
 };
 
 function getSearchError(value: unknown, fallback: string): SearchError {
   if (typeof value === "object" && value !== null) {
-    const payload = value as { error?: unknown; code?: unknown };
+    const payload = value as { error?: unknown; code?: unknown; details?: unknown };
     return {
       message: typeof payload.error === "string" ? payload.error : fallback,
       code: typeof payload.code === "string" ? payload.code : undefined,
+      details: typeof payload.details === "string" ? payload.details : undefined,
     };
   }
   return { message: fallback };
@@ -340,7 +342,7 @@ export default function Home() {
           <div
             role="alert"
             className={`mt-6 flex w-full flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
-              error.code === "BASEAPI_ADDRESS_FORBIDDEN"
+              error.code === "BASEAPI_ADDRESS_FORBIDDEN" || error.code === "BASEAPI_ROLE_FORBIDDEN"
                 ? "border-amber-200 bg-amber-50 text-amber-900"
                 : "border-red-200 bg-red-50 text-red-700"
             }`}
@@ -353,6 +355,9 @@ export default function Home() {
                   <p className="mt-1 text-sm font-normal text-amber-800">
                     La búsqueda por Rol SII sigue disponible. Para habilitar direcciones, revisa en BaseAPI que la key de Vercel tenga acceso a Mapas / Avalúos y vuelve a desplegarla.
                   </p>
+                )}
+                {error.details && (
+                  <p className="mt-1 text-sm font-normal text-amber-800">{error.details}</p>
                 )}
               </div>
             </div>

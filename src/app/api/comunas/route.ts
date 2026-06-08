@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Comuna } from "@/lib/baseapi";
+import type { Comuna, Region } from "@/lib/baseapi";
 import { extractArray, readResponseBody } from "@/lib/baseapi-response";
 import {
   BASEAPI_URL,
@@ -9,6 +9,8 @@ import {
   missingApiKeyPayload,
 } from "@/lib/baseapi-server";
 import { fallbackCommunes } from "@/lib/catalog";
+
+type AvaluoRegion = Region & { comunas?: Comuna[] };
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
       success: true,
       data: fallbackCommunes[regionCode] ?? [],
       source: "fallback",
+      catalog: "sii-avaluo",
     });
   }
 
@@ -40,36 +43,46 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await fetch(
-      `${BASEAPI_URL}/sii/datos/regiones/${regionCode}/comunas`,
-      {
-        cache: "no-store",
-        headers: getBaseApiHeaders(apiKey),
-      },
-    );
+    const response = await fetch(`${BASEAPI_URL}/sii/avaluo/regiones`, {
+      cache: "no-store",
+      headers: getBaseApiHeaders(apiKey),
+    });
     const payload = await readResponseBody(response);
 
     if (!response.ok) {
       return NextResponse.json(payload, { status: response.status });
     }
 
-    const communes = extractArray<Comuna>(payload, "comunas")
+    const region = extractArray<AvaluoRegion>(payload).find(
+      (item) => String(item.codigo).padStart(2, "0") === regionCode,
+    );
+
+    if (!region) {
+      return NextResponse.json(
+        {
+          error:
+            "La región solicitada no existe en el catálogo de Mapas / Avalúos.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const communes = (region.comunas ?? [])
       .filter(
-        (commune) => commune.codigo !== undefined && Boolean(commune.nombre),
+        (commune) =>
+          /^\d{5}$/.test(String(commune.codigo)) && Boolean(commune.nombre),
       )
-      .map((commune) => ({
-        ...commune,
-        codigo: String(commune.codigo).padStart(5, "0"),
-      }));
+      .map((commune) => ({ ...commune, codigo: String(commune.codigo) }));
 
     return NextResponse.json({
       success: true,
       data: communes,
       source: "baseapi",
+      catalog: "sii-avaluo",
     });
   } catch (error) {
     console.error(
-      `Error cargando comunas de la región ${regionCode} desde BaseAPI:`,
+      `Error cargando comunas SII Mapas de la región ${regionCode}:`,
       error,
     );
     return NextResponse.json(

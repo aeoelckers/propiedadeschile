@@ -6,7 +6,7 @@ MVP para buscar información catastral, avalúos y superficies de propiedades en
 
 ### Búsqueda por dirección
 
-- Selector dinámico de Región y Comuna usando los endpoints oficiales de Datos Auxiliares de BaseAPI.
+- Selector de regiones desde Datos Auxiliares y comunas desde el catálogo SII Mapas de Avalúos, que entrega los códigos requeridos por las búsquedas.
 - Campos de Calle y Número; el número es opcional para permitir búsquedas amplias.
 - Consulta al endpoint `GET /api/v1/sii/avaluo/buscar` a través de `/api/buscar`.
 - Tabla responsive con Rol, Dirección, Destino, Superficie y Avalúo Total.
@@ -73,10 +73,12 @@ DISCORD_WEBHOOK_URL=tu_webhook
 | Endpoint                                          | Descripción                                               |
 | ------------------------------------------------- | --------------------------------------------------------- |
 | `/api/regiones`                                   | Regiones desde `GET /api/v1/sii/datos/regiones`           |
-| `/api/comunas?region=13`                          | Comunas desde `GET /api/v1/sii/datos/regiones/13/comunas` |
+| `/api/comunas?region=13`                          | Comunas y códigos desde `GET /api/v1/sii/avaluo/regiones` |
 | `/api/buscar?comuna=13101&calle=ALAMEDA&numero=3` | Búsqueda de predios por dirección                         |
 | `/api/predio?comuna=13101&manzana=1&predio=1`     | Consulta de un predio por Rol SII                         |
 | `/api/test-bot`                                   | Prueba de notificación por Telegram                       |
+
+> **Importante:** los códigos de comuna de Datos Auxiliares no siempre coinciden con los códigos de SII Mapas. Por ejemplo, Las Condes es `13114` en el catálogo territorial, pero `15108` en SII Mapas; los endpoints de avalúo requieren `15108`.
 
 ## Próximos avances sugeridos
 
@@ -95,6 +97,10 @@ Documentación utilizada: [BaseAPI — Datos Auxiliares](https://baseapi.cl/pane
 La búsqueda por dirección usa `GET /api/v1/sii/avaluo/buscar` con el mismo header `x-api-key` que la consulta por Rol SII. Si `/api/predio` funciona pero `/api/buscar` responde `403`, el flujo por Rol debe mantenerse operativo y el bloqueo queda aislado al endpoint de dirección.
 
 Revisa que `BASEAPI_KEY` en Vercel sea la key vigente, confirma en BaseAPI que tenga acceso a `/sii/avaluo/buscar` y vuelve a desplegar el proyecto después de actualizar la variable. La aplicación mantiene disponible la búsqueda por Rol SII mientras ese endpoint no esté habilitado.
+
+### BaseAPI responde 403 al buscar por Rol SII
+
+La aplicación usa la variante oficial `/sii/avaluo/predio?comuna=...` y conserva la variante REST como compatibilidad si el endpoint principal no existe. Si BaseAPI responde `403`, la variable existe pero la API key no tiene acceso efectivo a **Mapas / Avalúos** o el código enviado no pertenece al catálogo SII Mapas. Que regiones y comunas funcionen no valida ese permiso, porque pertenecen a **Datos Auxiliares**. Revisa en el panel de BaseAPI el producto asociado a la key o solicita la habilitación de Mapas / Avalúos.
 
 ### La aplicación indica que falta `BASEAPI_KEY`
 
