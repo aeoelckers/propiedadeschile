@@ -91,7 +91,11 @@ export default function Home() {
       const payload: unknown = await response.json();
       if (!response.ok) throw new Error(getSearchError(payload, "No pudimos cargar las comunas.").message);
       const data = unwrapData<Comuna[]>(payload);
-      setComunas(Array.isArray(data) ? data : []);
+      const loadedCommunes = Array.isArray(data) ? data : [];
+      if (loadedCommunes.length === 0) {
+        throw new Error("No encontramos comunas SII Mapas para esta región.");
+      }
+      setComunas(loadedCommunes);
     } catch (loadError) {
       setError({ message: loadError instanceof Error ? loadError.message : "No pudimos cargar las comunas." });
     } finally {
@@ -250,7 +254,7 @@ export default function Home() {
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-base font-normal normal-case text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
                 >
                   <option value="">
-                    {loadingCommunes ? "Cargando comunas..." : selectedRegionId ? "Selecciona una comuna" : "Primero elige una región"}
+                    {loadingCommunes ? "Cargando comunas..." : selectedRegionId && comunas.length === 0 ? "No hay comunas disponibles" : selectedRegionId ? "Selecciona una comuna" : "Primero elige una región"}
                   </option>
                   {comunas.map((comuna) => (
                     <option key={comuna.codigo} value={comuna.codigo}>{comuna.nombre}</option>

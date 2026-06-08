@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import type { Comuna, Region } from "@/lib/baseapi";
-import { extractArray, readResponseBody } from "@/lib/baseapi-response";
 import {
-  BASEAPI_URL,
-  getBaseApiHeaders,
+  fetchAvaluoRegions,
+  getBaseApiCatalogError,
+} from "@/lib/avaluo-catalog";
+import {
   getBaseApiKey,
   isDevelopmentWithoutApiKey,
   missingApiKeyPayload,
 } from "@/lib/baseapi-server";
 import { fallbackCommunes } from "@/lib/catalog";
-
-type AvaluoRegion = Region & { comunas?: Comuna[] };
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +28,21 @@ export async function GET(request: Request) {
   const apiKey = getBaseApiKey();
 
   if (isDevelopmentWithoutApiKey(apiKey)) {
+    const communes = fallbackCommunes[regionCode] ?? [];
+    if (communes.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta región no está disponible en el catálogo local de desarrollo.",
+        },
+        { status: 404 },
+      );
+    }
+
+  if (isDevelopmentWithoutApiKey(apiKey)) {
     return NextResponse.json({
       success: true,
-      data: fallbackCommunes[regionCode] ?? [],
+      data: communes,
       source: "fallback",
       catalog: "sii-avaluo",
     });
@@ -43,44 +53,43 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await fetch(`${BASEAPI_URL}/sii/avaluo/regiones`, {
-      cache: "no-store",
-      headers: getBaseApiHeaders(apiKey),
-    });
-    const payload = await readResponseBody(response);
-
-    if (!response.ok) {
-      return NextResponse.json(payload, { status: response.status });
-    }
-
-    const region = extractArray<AvaluoRegion>(payload).find(
+    const catalog = await fetchAvaluoRegions(apiKey);
+    const region = catalog.find(
       (item) => String(item.codigo).padStart(2, "0") === regionCode,
     );
 
     if (!region) {
       return NextResponse.json(
-        {
-          error:
-            "La región solicitada no existe en el catálogo de Mapas / Avalúos.",
-        },
+        { error: "La región no existe en el catálogo de SII Mapas / Avalúos." },
         { status: 404 },
       );
     }
 
-    const communes = (region.comunas ?? [])
-      .filter(
-        (commune) =>
-          /^\d{5}$/.test(String(commune.codigo)) && Boolean(commune.nombre),
-      )
-      .map((commune) => ({ ...commune, codigo: String(commune.codigo) }));
+    if (region.comunas.length === 0) {
+      return NextResponse.json(
+        {
+          code: "BASEAPI_EMPTY_COMMUNES",
+          error:
+            "BaseAPI no devolvió comunas SII Mapas para la región seleccionada.",
+        },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: communes,
+      data: region.comunas,
       source: "baseapi",
       catalog: "sii-avaluo",
     });
   } catch (error) {
+    const baseApiError = getBaseApiCatalogError(error);
+    if (baseApiError) {
+      return NextResponse.json(baseApiError.payload, {
+        status: baseApiError.status,
+      });
+    }
+
     console.error(
       `Error cargando comunas SII Mapas de la región ${regionCode}:`,
       error,

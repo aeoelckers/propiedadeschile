@@ -6,7 +6,7 @@ MVP para buscar información catastral, avalúos y superficies de propiedades en
 
 ### Búsqueda por dirección
 
-- Selector de regiones desde Datos Auxiliares y comunas desde el catálogo SII Mapas de Avalúos, que entrega los códigos requeridos por las búsquedas.
+- Selectores de región y comuna obtenidos del mismo catálogo `GET /api/v1/sii/avaluo/regiones`, evitando mezclar códigos territoriales con códigos SII Mapas.
 - Campos de Calle y Número; el número es opcional para permitir búsquedas amplias.
 - Consulta al endpoint `GET /api/v1/sii/avaluo/buscar` a través de `/api/buscar`.
 - Tabla responsive con Rol, Dirección, Destino, Superficie y Avalúo Total.
@@ -70,13 +70,13 @@ DISCORD_WEBHOOK_URL=tu_webhook
 
 ## 📚 Endpoints internos
 
-| Endpoint                                          | Descripción                                               |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| `/api/regiones`                                   | Regiones desde `GET /api/v1/sii/datos/regiones`           |
-| `/api/comunas?region=13`                          | Comunas y códigos desde `GET /api/v1/sii/avaluo/regiones` |
-| `/api/buscar?comuna=13101&calle=ALAMEDA&numero=3` | Búsqueda de predios por dirección                         |
-| `/api/predio?comuna=13101&manzana=1&predio=1`     | Consulta de un predio por Rol SII                         |
-| `/api/test-bot`                                   | Prueba de notificación por Telegram                       |
+| Endpoint                                          | Descripción                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------ |
+| `/api/regiones`                                   | Regiones con comunas desde `GET /api/v1/sii/avaluo/regiones` |
+| `/api/comunas?region=13`                          | Comunas y códigos desde `GET /api/v1/sii/avaluo/regiones`    |
+| `/api/buscar?comuna=13101&calle=ALAMEDA&numero=3` | Búsqueda de predios por dirección                            |
+| `/api/predio?comuna=13101&manzana=1&predio=1`     | Consulta de un predio por Rol SII                            |
+| `/api/test-bot`                                   | Prueba de notificación por Telegram                          |
 
 > **Importante:** los códigos de comuna de Datos Auxiliares no siempre coinciden con los códigos de SII Mapas. Por ejemplo, Las Condes es `13114` en el catálogo territorial, pero `15108` en SII Mapas; los endpoints de avalúo requieren `15108`.
 

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import type { Region } from "@/lib/baseapi";
-import { extractArray, readResponseBody } from "@/lib/baseapi-response";
 import {
-  BASEAPI_URL,
-  getBaseApiHeaders,
+  fetchAvaluoRegions,
+  getBaseApiCatalogError,
+} from "@/lib/avaluo-catalog";
+import {
   getBaseApiKey,
   isDevelopmentWithoutApiKey,
   missingApiKeyPayload,
 } from "@/lib/baseapi-server";
-import { fallbackRegions } from "@/lib/catalog";
+import { fallbackCommunes, fallbackRegions } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +16,16 @@ export async function GET() {
   const apiKey = getBaseApiKey();
 
   if (isDevelopmentWithoutApiKey(apiKey)) {
+    const regions = fallbackRegions.filter(
+      (region) =>
+        (fallbackCommunes[String(region.codigo).padStart(2, "0")] ?? [])
+          .length > 0,
+    );
     return NextResponse.json({
       success: true,
-      data: fallbackRegions,
+      data: regions,
       source: "fallback",
+      catalog: "sii-avaluo",
     });
   }
 
@@ -28,28 +34,16 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(`${BASEAPI_URL}/sii/datos/regiones`, {
-      cache: "no-store",
-      headers: getBaseApiHeaders(apiKey),
-    });
-    const payload = await readResponseBody(response);
-
-    if (!response.ok) {
-      return NextResponse.json(payload, { status: response.status });
-    }
-
-    const regions = extractArray<Region>(payload)
-      .filter((region) => region.codigo !== undefined && Boolean(region.nombre))
-      .map((region) => ({
-        ...region,
-        codigo: String(region.codigo).padStart(2, "0"),
-      }));
+    const catalog = await fetchAvaluoRegions(apiKey);
+    const regions = catalog
+      .filter((region) => region.comunas.length > 0)
+      .map(({ codigo, nombre }) => ({ codigo, nombre }));
 
     if (regions.length === 0) {
       return NextResponse.json(
         {
           code: "BASEAPI_INVALID_CATALOG",
-          error: "BaseAPI no devolvió un listado de regiones válido.",
+          error: "BaseAPI no devolvió regiones con comunas SII Mapas.",
         },
         { status: 502 },
       );
@@ -59,12 +53,17 @@ export async function GET() {
       success: true,
       data: regions,
       source: "baseapi",
+      catalog: "sii-avaluo",
     });
   } catch (error) {
-    console.error(
-      "Error cargando regiones desde Datos Auxiliares de BaseAPI:",
-      error,
-    );
+    const baseApiError = getBaseApiCatalogError(error);
+    if (baseApiError) {
+      return NextResponse.json(baseApiError.payload, {
+        status: baseApiError.status,
+      });
+    }
+
+    console.error("Error cargando regiones SII Mapas desde BaseAPI:", error);
     return NextResponse.json(
       {
         code: "BASEAPI_NETWORK_ERROR",
