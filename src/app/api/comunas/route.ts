@@ -22,6 +22,10 @@ export async function GET(request: Request) {
   const regionCodigo = searchParams.get("region");
   const apiKey = process.env.BASEAPI_KEY;
 
+  if (!regionCode) {
+    return NextResponse.json({ error: "Falta el código de región." }, { status: 400, headers: noStoreHeaders });
+  }
+
   if (!apiKey) {
     if (regionCodigo === "13") {
       return NextResponse.json({
@@ -50,6 +54,7 @@ export async function GET(request: Request) {
   try {
     for (const url of urls) {
       const response = await fetch(url, {
+        cache: "no-store",
         headers: {
           "x-api-key": apiKey,
           "Content-Type": "application/json",
@@ -62,6 +67,16 @@ export async function GET(request: Request) {
           return NextResponse.json(data);
         }
       }
+
+      const communes = normalizeCommunes(payload, regionCode)
+        .filter((commune) => commune.codigo !== undefined && Boolean(commune.nombre))
+        .map((commune) => ({ codigo: String(commune.codigo), nombre: commune.nombre }));
+
+      if (communes.length > 0) {
+        return NextResponse.json({ success: true, data: communes, source: "baseapi" }, { headers: noStoreHeaders });
+      }
+    } catch (error) {
+      console.error(`Error consultando comunas en ${url}:`, error);
     }
 
     return NextResponse.json({ error: "No se encontraron comunas" }, { status: 404 });
@@ -69,4 +84,9 @@ export async function GET(request: Request) {
     console.error("Error fetching comunas:", error);
     return NextResponse.json({ error: "Error fetching comunas" }, { status: 500 });
   }
+
+  return NextResponse.json(
+    { success: true, data: fallbackCommunes[regionCode] || [], source: "fallback" },
+    { headers: noStoreHeaders },
+  );
 }

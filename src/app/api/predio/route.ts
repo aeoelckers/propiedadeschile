@@ -54,6 +54,8 @@ export async function GET(request: Request) {
     });
   }
 
+  const params = new URLSearchParams({ comuna, manzana, predio });
+
   try {
     const params = new URLSearchParams({ comuna, manzana, predio });
     const response = await fetch(
