@@ -6,7 +6,7 @@ MVP para buscar información catastral, avalúos y superficies de propiedades en
 
 ### Búsqueda por dirección
 
-- Selector de Región y Comuna usando el catálogo de **Mapas / Avalúos SII**.
+- Selector de Región disponible localmente y carga de comunas desde los endpoints auxiliares de BaseAPI. Si BaseAPI rechaza el catálogo, se utiliza un respaldo local para las comunas principales de las regiones Metropolitana y Valparaíso.
 - Campos de Calle y Número; el número es opcional para permitir búsquedas amplias.
 - Consulta al endpoint `GET /api/v1/sii/avaluo/buscar` a través de `/api/buscar`.
 - Tabla responsive con Rol, Dirección, Destino, Superficie y Avalúo Total.
@@ -71,8 +71,8 @@ DISCORD_WEBHOOK_URL=tu_webhook
 
 | Endpoint | Descripción |
 | --- | --- |
-| `/api/regiones` | Regiones del catálogo Mapas SII |
-| `/api/comunas?region=13` | Comunas y códigos SII de una región |
+| `/api/regiones` | Catálogo local estable de las 16 regiones de Chile |
+| `/api/comunas?region=13` | Comunas y códigos SII con respaldo local ante errores de BaseAPI |
 | `/api/buscar?comuna=13114&calle=EL%20CONVENTO&numero=715` | Búsqueda de predios por dirección |
 | `/api/predio?comuna=13101&manzana=1&predio=1` | Consulta de un predio por Rol SII |
 | `/api/test-bot` | Prueba de notificación por Telegram |

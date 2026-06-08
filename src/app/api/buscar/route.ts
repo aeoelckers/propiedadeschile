@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { AddressSearchResponse } from "@/lib/baseapi";
+import { readResponseBody } from "@/lib/baseapi-response";
 import { sendSearchNotification } from "@/lib/notifications";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -68,13 +71,14 @@ export async function GET(request: Request) {
     const response = await fetch(
       `https://api.baseapi.cl/api/v1/sii/avaluo/buscar?${params.toString()}`,
       {
+        cache: "no-store",
         headers: {
           "x-api-key": apiKey,
           "Content-Type": "application/json",
         },
       },
     );
-    const data: unknown = await response.json();
+    const data = await readResponseBody(response);
 
     if (!response.ok) {
       await sendSearchNotification({
@@ -83,7 +87,11 @@ export async function GET(request: Request) {
         details: `BaseAPI respondió ${response.status}`,
         request,
       });
-      return NextResponse.json(data, { status: response.status });
+      const apiError =
+        response.status === 403
+          ? { error: "La API key configurada no tiene acceso a la búsqueda por dirección. Revisa los permisos del servicio Mapas / Avalúos en BaseAPI." }
+          : data;
+      return NextResponse.json(apiError, { status: response.status });
     }
 
     const total =
