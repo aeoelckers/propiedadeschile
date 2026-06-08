@@ -1,6 +1,7 @@
 export interface Region {
   codigo: string | number;
   nombre: string;
+  total_comunas?: number;
 }
 
 export interface Comuna {
