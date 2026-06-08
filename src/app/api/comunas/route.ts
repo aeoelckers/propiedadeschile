@@ -1,54 +1,55 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import type { Comuna } from "@/lib/baseapi";
+
+interface BaseApiRegion {
+  codigo: string | number;
+  comunas?: Comuna[];
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const regionCodigo = searchParams.get('region');
+  const regionCode = searchParams.get("region")?.trim();
   const apiKey = process.env.BASEAPI_KEY;
 
+  if (!regionCode) {
+    return NextResponse.json({ error: "Falta el código de región." }, { status: 400 });
+  }
+
   if (!apiKey) {
-    if (regionCodigo === "13") {
-      return NextResponse.json({
-        success: true,
-        data: [
-          { codigo: "15108", nombre: "LAS CONDES" },
-          { codigo: "15101", nombre: "SANTIAGO" }
-        ]
-      });
-    }
-    return NextResponse.json({
-      success: true,
-      data: [{ codigo: "05101", nombre: "VALPARAISO" }]
-    });
+    const communes =
+      regionCode === "13"
+        ? [
+            { codigo: "13114", nombre: "LAS CONDES" },
+            { codigo: "13101", nombre: "SANTIAGO" },
+            { codigo: "13123", nombre: "PROVIDENCIA" },
+          ]
+        : [
+            { codigo: "05101", nombre: "VALPARAÍSO" },
+            { codigo: "05109", nombre: "VIÑA DEL MAR" },
+          ];
+    return NextResponse.json({ success: true, data: communes });
   }
 
   try {
-    const urls = regionCodigo 
-      ? [
-          `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
-          `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
-          `https://api.baseapi.cl/api/v1/sii/datos/comunas`
-        ]
-      : ['https://api.baseapi.cl/api/v1/sii/datos/comunas'];
+    const response = await fetch("https://api.baseapi.cl/api/v1/sii/avaluo/regiones", {
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+    const payload: unknown = await response.json();
 
-    for (const url of urls) {
-      const response = await fetch(url, {
-        headers: {
-          'x-api-key': apiKey,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Return first successful response that has data
-        if (data.success || Array.isArray(data) || data.comunas || (data.data && Array.isArray(data.data.comunas))) {
-          return NextResponse.json(data);
-        }
-      }
+    if (!response.ok) {
+      return NextResponse.json(payload, { status: response.status });
     }
-    
-    return NextResponse.json({ error: 'No se encontraron comunas' }, { status: 404 });
+
+    const regions = Array.isArray(payload) ? (payload as BaseApiRegion[]) : [];
+    const region = regions.find((item) => String(item.codigo).padStart(2, "0") === regionCode.padStart(2, "0"));
+    const communes = Array.isArray(region?.comunas) ? region.comunas : [];
+
+    return NextResponse.json({ success: true, data: communes });
   } catch (error) {
-    return NextResponse.json({ error: 'Error fetching comunas' }, { status: 500 });
+    console.error("Error fetching comunas:", error);
+    return NextResponse.json({ error: "Error fetching comunas" }, { status: 500 });
   }
 }
