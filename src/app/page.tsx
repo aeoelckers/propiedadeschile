@@ -21,13 +21,20 @@ import {
 } from "@/lib/baseapi";
 
 type SearchMode = "address" | "role";
+type SearchError = {
+  message: string;
+  code?: string;
+};
 
-function getErrorMessage(value: unknown, fallback: string): string {
-  if (typeof value === "object" && value !== null && "error" in value) {
-    const error = (value as { error?: unknown }).error;
-    if (typeof error === "string") return error;
+function getSearchError(value: unknown, fallback: string): SearchError {
+  if (typeof value === "object" && value !== null) {
+    const payload = value as { error?: unknown; code?: unknown };
+    return {
+      message: typeof payload.error === "string" ? payload.error : fallback,
+      code: typeof payload.code === "string" ? payload.code : undefined,
+    };
   }
-  return fallback;
+  return { message: fallback };
 }
 
 export default function Home() {
@@ -43,7 +50,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loadingRegions, setLoadingRegions] = useState(true);
   const [loadingCommunes, setLoadingCommunes] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<SearchError | null>(null);
   const [propertyData, setPropertyData] = useState<Property | null>(null);
   const [results, setResults] = useState<Property[]>([]);
   const [lastAddressQuery, setLastAddressQuery] = useState("");
@@ -53,11 +60,11 @@ export default function Home() {
       try {
         const response = await fetch("/api/regiones");
         const payload: unknown = await response.json();
-        if (!response.ok) throw new Error(getErrorMessage(payload, "No pudimos cargar las regiones."));
+        if (!response.ok) throw new Error(getSearchError(payload, "No pudimos cargar las regiones.").message);
         const data = unwrapData<Region[]>(payload);
         setRegiones(Array.isArray(data) ? data : []);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "No pudimos cargar las regiones.");
+        setError({ message: loadError instanceof Error ? loadError.message : "No pudimos cargar las regiones." });
       } finally {
         setLoadingRegions(false);
       }
@@ -72,7 +79,7 @@ export default function Home() {
     setComunas([]);
     setPropertyData(null);
     setResults([]);
-    setError("");
+    setError(null);
     if (!regionId) return;
 
     setLoadingCommunes(true);
@@ -80,11 +87,11 @@ export default function Home() {
       const params = new URLSearchParams({ region: regionId });
       const response = await fetch(`/api/comunas?${params.toString()}`);
       const payload: unknown = await response.json();
-      if (!response.ok) throw new Error(getErrorMessage(payload, "No pudimos cargar las comunas."));
+      if (!response.ok) throw new Error(getSearchError(payload, "No pudimos cargar las comunas.").message);
       const data = unwrapData<Comuna[]>(payload);
       setComunas(Array.isArray(data) ? data : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "No pudimos cargar las comunas.");
+      setError({ message: loadError instanceof Error ? loadError.message : "No pudimos cargar las comunas." });
     } finally {
       setLoadingCommunes(false);
     }
@@ -92,31 +99,32 @@ export default function Home() {
 
   function changeMode(nextMode: SearchMode) {
     setMode(nextMode);
-    setError("");
+    setError(null);
     setPropertyData(null);
     setResults([]);
   }
 
   async function handleSearch(event: React.FormEvent) {
     event.preventDefault();
-    setError("");
+    setError(null);
     setPropertyData(null);
     setResults([]);
 
     if (!selectedComunaId) {
-      setError("Selecciona una región y una comuna para buscar.");
+      setError({ message: "Selecciona una región y una comuna para buscar." });
       return;
     }
 
     if (mode === "role" && (!manzana || !predio)) {
-      setError("Completa la manzana y el predio.");
+      setError({ message: "Completa la manzana y el predio." });
       return;
     }
 
     if (mode === "address" && !calle.trim()) {
-      setError("Ingresa el nombre de una calle.");
+      setError({ message: "Ingresa el nombre de una calle." });
       return;
     }
+  }
 
     setLoading(true);
 
@@ -130,7 +138,9 @@ export default function Home() {
         const response = await fetch(`/api/predio?${params.toString()}`);
         const payload: unknown = await response.json();
         if (!response.ok) {
-          throw new Error(getErrorMessage(payload, "No se encontró información para este rol."));
+          const searchError = getSearchError(payload, "No se encontró información para este rol.");
+          setError(searchError);
+          return;
         }
         setPropertyData(unwrapData<Property>(payload));
       } else {
@@ -142,18 +152,20 @@ export default function Home() {
         const response = await fetch(`/api/buscar?${params.toString()}`);
         const payload: unknown = await response.json();
         if (!response.ok) {
-          throw new Error(getErrorMessage(payload, "No pudimos buscar esa dirección."));
+          const searchError = getSearchError(payload, "No pudimos buscar esa dirección.");
+          setError(searchError);
+          return;
         }
         const data = unwrapData<AddressSearchResponse>(payload);
         const found = Array.isArray(data?.predios) ? data.predios : [];
         setResults(found);
         setLastAddressQuery(`${calle.trim()}${numero.trim() ? ` ${numero.trim()}` : ""}`);
         if (found.length === 0) {
-          setError("No encontramos predios para esa dirección. Prueba usando solo el nombre principal de la calle.");
+          setError({ message: "No encontramos predios para esa dirección. Prueba usando solo el nombre principal de la calle." });
         }
       }
     } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : "Error de conexión con el servidor.");
+      setError({ message: searchError instanceof Error ? searchError.message : "Error de conexión con el servidor." });
     } finally {
       setLoading(false);
     }
@@ -326,9 +338,34 @@ export default function Home() {
         </section>
 
         {error && (
-          <div role="alert" className="mt-6 flex w-full items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-            <p>{error}</p>
+          <div
+            role="alert"
+            className={`mt-6 flex w-full flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+              error.code === "BASEAPI_ADDRESS_FORBIDDEN"
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-semibold">{error.message}</p>
+                {error.code === "BASEAPI_ADDRESS_FORBIDDEN" && (
+                  <p className="mt-1 text-sm font-normal text-amber-800">
+                    La búsqueda por Rol SII sigue disponible. Para habilitar direcciones, revisa en BaseAPI que la key de Vercel tenga acceso a Mapas / Avalúos y vuelve a desplegarla.
+                  </p>
+                )}
+              </div>
+            </div>
+            {error.code === "BASEAPI_ADDRESS_FORBIDDEN" && (
+              <button
+                type="button"
+                onClick={() => changeMode("role")}
+                className="shrink-0 rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
+              >
+                Buscar por Rol SII
+              </button>
+            )}
           </div>
         )}
 

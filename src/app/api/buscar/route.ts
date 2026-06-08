@@ -87,11 +87,18 @@ export async function GET(request: Request) {
         details: `BaseAPI respondió ${response.status}`,
         request,
       });
-      const apiError =
-        response.status === 403
-          ? { error: "La API key configurada no tiene acceso a la búsqueda por dirección. Revisa los permisos del servicio Mapas / Avalúos en BaseAPI." }
-          : data;
-      return NextResponse.json(apiError, { status: response.status });
+      if (response.status === 403) {
+        console.error("BaseAPI rechazó /sii/avaluo/buscar con 403:", data);
+        return NextResponse.json(
+          {
+            code: "BASEAPI_ADDRESS_FORBIDDEN",
+            error: "BaseAPI rechazó temporalmente la búsqueda por dirección para la API key configurada.",
+          },
+          { status: 403 },
+        );
+      }
+
+      return NextResponse.json(data, { status: response.status });
     }
 
     const total =

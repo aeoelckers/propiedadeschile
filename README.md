@@ -86,3 +86,11 @@ DISCORD_WEBHOOK_URL=tu_webhook
 5. Añadir un aviso de privacidad para el registro opcional de telemetría de consultas.
 
 Documentación utilizada: [BaseAPI — Mapas / Avalúos](https://baseapi.cl/docs/mapas--avaluos).
+
+## Solución de problemas
+
+### BaseAPI responde 403 al buscar una dirección
+
+La búsqueda por dirección usa `GET /api/v1/sii/avaluo/buscar` con el mismo header `x-api-key` que la consulta por Rol SII. Si `/api/predio` funciona pero `/api/buscar` responde `403`, BaseAPI está rechazando ese endpoint para la key configurada.
+
+Revisa que `BASEAPI_KEY` en Vercel sea la key vigente, confirma en BaseAPI que tenga acceso al servicio **Mapas / Avalúos** y vuelve a desplegar el proyecto después de actualizar la variable. La aplicación mantiene disponible la búsqueda por Rol SII mientras ese endpoint no esté habilitado.
