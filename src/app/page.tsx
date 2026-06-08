@@ -124,6 +124,7 @@ export default function Home() {
       setError({ message: "Ingresa el nombre de una calle." });
       return;
     }
+  }
 
     setLoading(true);
 
