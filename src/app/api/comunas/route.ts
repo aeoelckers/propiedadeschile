@@ -39,7 +39,6 @@ export async function GET(request: Request) {
       );
     }
 
-  if (isDevelopmentWithoutApiKey(apiKey)) {
     return NextResponse.json({
       success: true,
       data: communes,
