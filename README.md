@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏢 Proptech MVP - Buscador Catastral SII
 
-## Getting Started
+Este es el MVP inicial de la plataforma Proptech para la búsqueda de información catastral y avalúos de propiedades en Chile, conectada a la API oficial de **BaseAPI**.
 
-First, run the development server:
+## ✨ Estado Actual (Funcionando 100% Estable)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+El proyecto actualmente cuenta con las siguientes características operativas en el entorno de producción (Vercel):
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- ✅ **Búsqueda por Rol (Manzana y Predio):** 
+  - Selector dinámico de Región.
+  - Selector dinámico de Comuna (carga desde BaseAPI solo la comuna seleccionada).
+  - Inputs numéricos para Manzana y Predio.
+- ✅ **Tarjeta de Propiedad (Property Card):**
+  - Mapeo exacto de los datos devueltos por el SII.
+  - Formato limpio (blanco y azul) con separaciones visuales para: Identificación, Avalúos y Superficie.
+- ✅ **Manejo de Errores:**
+  - Prevención de crasheos en el lado del cliente ante cambios de formato en la API.
+  - Notificaciones en pantalla (UI) en caso de fallos.
+- ✅ **Sistema de Notificaciones (Webhook):**
+  - Envío automático de notificaciones a Telegram / Discord cada vez que un usuario realiza una consulta.
+  - Captura invisible de datos: IP, User-Agent, Región, Rol y Resultado de la Búsqueda.
+  - Ruta `/api/test-bot` para verificar el estado de las notificaciones sin gastar consultas de BaseAPI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚀 PRÓXIMO AVANCE (Next Steps)
 
-## Learn More
+Para la próxima sesión de trabajo, el objetivo principal es implementar el motor de **Búsqueda por Dirección**.
 
-To learn more about Next.js, take a look at the following resources:
+### Funcionalidades a desarrollar:
+1. **Pestañas en la UI:** Agregar un switch en la parte superior del formulario para alternar entre `📍 Dirección` y `# Rol SII`.
+2. **Nuevos Campos:** En la pestaña de Dirección, mantener Región/Comuna, pero reemplazar Manzana/Predio por inputs de `Calle` y `Número`.
+3. **Endpoint `/api/buscar`:** Conectar el frontend con el endpoint `GET /api/v1/sii/avaluo/buscar` de BaseAPI.
+4. **Tabla de Resultados:** Mostrar una lista de coincidencias para esa dirección (Rol, Destino, Superficie, Avalúo) en una tabla estilo "Lista de Resultados".
+5. **Apertura Rápida:** Al hacer clic en un resultado de la tabla, mostrar la `PropertyCard` existente inmediatamente, aprovechando que el endpoint `/buscar` ya incluye la data completa (evitando así un doble cobro por consulta).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Tecnologías Usadas
+- Next.js (App Router)
+- React
+- Tailwind CSS
+- Vercel (Hosting)
+- BaseAPI (Data Source)
