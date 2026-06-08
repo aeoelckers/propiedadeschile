@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const urls = regionCodigo 
+    const urls = regionCodigo
       ? [
           `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
           `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         // Return first successful response that has data
@@ -46,9 +46,9 @@ export async function GET(request: Request) {
         }
       }
     }
-    
+
     return NextResponse.json({ error: 'No se encontraron comunas' }, { status: 404 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Error fetching comunas' }, { status: 500 });
   }
 }

@@ -13,13 +13,13 @@ export async function GET(request: Request) {
   // Capturar datos del usuario de forma invisible
   const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'IP desconocida';
   const userAgent = request.headers.get('user-agent') || 'Dispositivo desconocido';
-  
+
   // Función para enviar notificación
   const sendNotification = async (status: string, details: string) => {
     const message = `🔎 *Nueva Búsqueda Proptech*\n- **Rol:** ${manzana}-${predio}\n- **Comuna:** ${comuna}\n- **Estado:** ${status}\n- **IP:** ${ip}\n- **Dispositivo:** ${userAgent}\n${details ? `- **Detalles:** ${details}` : ''}`;
-    
+
     const promises = [];
-    
+
     // Telegram
     if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
       promises.push(
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
         }).catch(e => console.error('Telegram Error:', e))
       );
     }
-    
+
     // Discord / Slack
     if (process.env.DISCORD_WEBHOOK_URL) {
       promises.push(
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         }).catch(e => console.error('Discord/Slack Error:', e))
       );
     }
-    
+
     await Promise.all(promises);
   };
 
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       await sendNotification("❌ Fallida (Not Found / Error)", `Respuesta BaseAPI: ${response.status}`);
       return NextResponse.json(data, { status: response.status });

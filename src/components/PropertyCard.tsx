@@ -1,29 +1,23 @@
-import { MapPin, DollarSign, Ruler, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { DollarSign, ExternalLink, MapPin, Ruler } from "lucide-react";
+import {
+  formatCLP,
+  formatM2,
+  getComunaCode,
+  getComunaName,
+  type Property,
+} from "@/lib/baseapi";
 
-export function PropertyCard({ data }: { data: any }) {
-  // BaseAPI devuelve { success: true, data: { ... } }
-  const d = data.data || data;
-
-  // Formateador de CLP
-  const formatCLP = (amount?: number) => {
-    if (amount === undefined || amount === null) return "N/A";
-    return new Intl.NumberFormat("es-CL", {
-      style: "currency",
-      currency: "CLP",
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  // Formateador de Metros Cuadrados
-  const formatM2 = (val?: number) => {
-    if (val === undefined || val === null) return "N/A";
-    return `${val} m²`;
-  };
+export function PropertyCard({ data }: { data: Property }) {
+  const d = data;
 
   // Mapeo exacto basado en la documentación oficial de BaseAPI
   const dir = d.direccion || "Dirección no registrada";
-  const comunaNombre = d.comuna?.nombre || d.comuna || "Comuna desconocida";
+  const comunaNombre = getComunaName(d.comuna);
+  const comunaCodigo = getComunaCode(d.comuna);
+  const mapUrl =
+    d.coordenadas?.latitud !== undefined && d.coordenadas?.longitud !== undefined
+      ? `https://www.openstreetmap.org/?mlat=${d.coordenadas.latitud}&mlon=${d.coordenadas.longitud}#map=18/${d.coordenadas.latitud}/${d.coordenadas.longitud}`
+      : null;
 
   const avals = {
     total: d.avaluo?.total,
@@ -44,10 +38,22 @@ export function PropertyCard({ data }: { data: any }) {
       
       {/* HEADER UBICACIÓN */}
       <div className="px-6 py-5 border-b border-slate-200 bg-blue-50/50">
-        <h2 className="text-blue-900 text-xl font-bold flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-blue-600" />
-          {dir} <span className="text-slate-500 font-normal">• {comunaNombre}</span>
-        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-blue-900 text-xl font-bold flex items-start gap-2">
+            <MapPin className="mt-0.5 w-5 h-5 shrink-0 text-blue-600" />
+            <span>{dir} <span className="text-slate-500 font-normal">• {comunaNombre}</span></span>
+          </h2>
+          {mapUrl && (
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
+            >
+              Ver en mapa <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="p-6">
@@ -80,7 +86,7 @@ export function PropertyCard({ data }: { data: any }) {
           <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Comuna</p>
-              <p className="text-slate-900 font-medium text-sm">{comunaNombre} ({d.comuna?.codigo})</p>
+              <p className="text-slate-900 font-medium text-sm">{comunaNombre}{comunaCodigo ? ` (${comunaCodigo})` : ""}</p>
             </div>
             <div>
               <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Rol de Avalúo</p>
