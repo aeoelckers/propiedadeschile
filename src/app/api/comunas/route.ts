@@ -12,6 +12,10 @@ import { fallbackCommunes } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
+function errorResponse(error: string, status: number, code?: string) {
+  return NextResponse.json(code ? { code, error } : { error }, { status });
+}
+
 export async function GET(request: Request) {
   const regionCode = new URL(request.url).searchParams
     .get("region")
@@ -19,9 +23,9 @@ export async function GET(request: Request) {
     .padStart(2, "0");
 
   if (!regionCode || !/^\d{2}$/.test(regionCode)) {
-    return NextResponse.json(
-      { error: "El código de región debe tener uno o dos dígitos." },
-      { status: 400 },
+    return errorResponse(
+      "El código de región debe tener uno o dos dígitos.",
+      400,
     );
   }
 
@@ -29,13 +33,11 @@ export async function GET(request: Request) {
 
   if (isDevelopmentWithoutApiKey(apiKey)) {
     const communes = fallbackCommunes[regionCode] ?? [];
+
     if (communes.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Esta región no está disponible en el catálogo local de desarrollo.",
-        },
-        { status: 404 },
+      return errorResponse(
+        "Esta región no está disponible en el catálogo local de desarrollo.",
+        404,
       );
     }
 
@@ -59,20 +61,17 @@ export async function GET(request: Request) {
     );
 
     if (!region) {
-      return NextResponse.json(
-        { error: "La región no existe en el catálogo de SII Mapas / Avalúos." },
-        { status: 404 },
+      return errorResponse(
+        "La región no existe en el catálogo de SII Mapas / Avalúos.",
+        404,
       );
     }
 
     if (region.comunas.length === 0) {
-      return NextResponse.json(
-        {
-          code: "BASEAPI_EMPTY_COMMUNES",
-          error:
-            "BaseAPI no devolvió comunas SII Mapas para la región seleccionada.",
-        },
-        { status: 502 },
+      return errorResponse(
+        "BaseAPI no devolvió comunas SII Mapas para la región seleccionada.",
+        502,
+        "BASEAPI_EMPTY_COMMUNES",
       );
     }
 
@@ -84,6 +83,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const baseApiError = getBaseApiCatalogError(error);
+
     if (baseApiError) {
       return NextResponse.json(baseApiError.payload, {
         status: baseApiError.status,
@@ -94,12 +94,11 @@ export async function GET(request: Request) {
       `Error cargando comunas SII Mapas de la región ${regionCode}:`,
       error,
     );
-    return NextResponse.json(
-      {
-        code: "BASEAPI_NETWORK_ERROR",
-        error: "No fue posible conectar con BaseAPI para cargar las comunas.",
-      },
-      { status: 502 },
+
+    return errorResponse(
+      "No fue posible conectar con BaseAPI para cargar las comunas.",
+      502,
+      "BASEAPI_NETWORK_ERROR",
     );
   }
 }
