@@ -1,3 +1,6 @@
+import { after } from "next/server";
+import { sendTelegramMessage } from "@/lib/telegram";
+
 interface SearchNotification {
   title: string;
   details: string;
@@ -5,7 +8,7 @@ interface SearchNotification {
   request: Request;
 }
 
-export async function sendSearchNotification({
+export function sendSearchNotification({
   title,
   details,
   status,
@@ -15,7 +18,8 @@ export async function sendSearchNotification({
     request.headers.get("x-forwarded-for") ||
     request.headers.get("x-real-ip") ||
     "IP desconocida";
-  const userAgent = request.headers.get("user-agent") || "Dispositivo desconocido";
+  const userAgent =
+    request.headers.get("user-agent") || "Dispositivo desconocido";
   const message = [
     "🔎 Nueva búsqueda Proptech",
     `Consulta: ${title}`,
@@ -27,30 +31,26 @@ export async function sendSearchNotification({
     .filter(Boolean)
     .join("\n");
 
-  const notifications: Promise<unknown>[] = [];
+  after(async () => {
+    const notifications: Promise<unknown>[] = [
+      sendTelegramMessage(message).catch((error: unknown) =>
+        console.error("Telegram Error:", error),
+      ),
+    ];
 
-  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-    notifications.push(
-      fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_CHAT_ID,
-          text: message,
-        }),
-      }).catch((error: unknown) => console.error("Telegram Error:", error)),
-    );
-  }
+    const discordWebhook = process.env.DISCORD_WEBHOOK_URL?.trim();
+    if (discordWebhook) {
+      notifications.push(
+        fetch(discordWebhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: message }),
+        }).catch((error: unknown) =>
+          console.error("Discord/Slack Error:", error),
+        ),
+      );
+    }
 
-  if (process.env.DISCORD_WEBHOOK_URL) {
-    notifications.push(
-      fetch(process.env.DISCORD_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: message }),
-      }).catch((error: unknown) => console.error("Discord/Slack Error:", error)),
-    );
-  }
-
-  await Promise.all(notifications);
+    await Promise.all(notifications);
+  });
 }

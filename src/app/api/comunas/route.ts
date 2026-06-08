@@ -1,92 +1,103 @@
 import { NextResponse } from "next/server";
-import { readResponseBody } from "@/lib/baseapi-response";
+import {
+  fetchAvaluoRegions,
+  getBaseApiCatalogError,
+} from "@/lib/avaluo-catalog";
+import {
+  getBaseApiKey,
+  isDevelopmentWithoutApiKey,
+  missingApiKeyPayload,
+} from "@/lib/baseapi-server";
+import { fallbackCommunes } from "@/lib/catalog";
 
-function hasComunasPayload(data: unknown) {
-  if (Array.isArray(data)) return data.length > 0;
-  if (typeof data !== "object" || data === null) return false;
+export const dynamic = "force-dynamic";
 
-  const payload = data as Record<string, unknown>;
-  if (payload.success) return true;
-  if (Array.isArray(payload.comunas)) return true;
-  if (Array.isArray(payload.data)) return true;
-
-  return (
-    typeof payload.data === "object" &&
-    payload.data !== null &&
-    Array.isArray((payload.data as Record<string, unknown>).comunas)
-  );
+function errorResponse(error: string, status: number, code?: string) {
+  return NextResponse.json(code ? { code, error } : { error }, { status });
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const regionCodigo = searchParams.get("region");
-  const apiKey = process.env.BASEAPI_KEY;
+  const regionCode = new URL(request.url).searchParams
+    .get("region")
+    ?.trim()
+    .padStart(2, "0");
 
-  if (!regionCode) {
-    return NextResponse.json({ error: "Falta el código de región." }, { status: 400, headers: noStoreHeaders });
+  if (!regionCode || !/^\d{2}$/.test(regionCode)) {
+    return errorResponse(
+      "El código de región debe tener uno o dos dígitos.",
+      400,
+    );
   }
 
-  if (!apiKey) {
-    if (regionCodigo === "13") {
-      return NextResponse.json({
-        success: true,
-        data: [
-          { codigo: "15108", nombre: "LAS CONDES" },
-          { codigo: "15101", nombre: "SANTIAGO" },
-        ],
-      });
+  const apiKey = getBaseApiKey();
+
+  if (isDevelopmentWithoutApiKey(apiKey)) {
+    const communes = fallbackCommunes[regionCode] ?? [];
+
+    if (communes.length === 0) {
+      return errorResponse(
+        "Esta región no está disponible en el catálogo local de desarrollo.",
+        404,
+      );
     }
 
     return NextResponse.json({
       success: true,
-      data: [{ codigo: "05101", nombre: "VALPARAISO" }],
+      data: communes,
+      source: "fallback",
+      catalog: "sii-avaluo",
     });
   }
 
-  const urls = regionCodigo
-    ? [
-        `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
-        `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
-        "https://api.baseapi.cl/api/v1/sii/datos/comunas",
-      ]
-    : ["https://api.baseapi.cl/api/v1/sii/datos/comunas"];
-
-  try {
-    for (const url of urls) {
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await readResponseBody(response);
-        if (hasComunasPayload(data)) {
-          return NextResponse.json(data);
-        }
-      }
-
-      const communes = normalizeCommunes(payload, regionCode)
-        .filter((commune) => commune.codigo !== undefined && Boolean(commune.nombre))
-        .map((commune) => ({ codigo: String(commune.codigo), nombre: commune.nombre }));
-
-      if (communes.length > 0) {
-        return NextResponse.json({ success: true, data: communes, source: "baseapi" }, { headers: noStoreHeaders });
-      }
-    } catch (error) {
-      console.error(`Error consultando comunas en ${url}:`, error);
-    }
-
-    return NextResponse.json({ error: "No se encontraron comunas" }, { status: 404 });
-  } catch (error) {
-    console.error("Error fetching comunas:", error);
-    return NextResponse.json({ error: "Error fetching comunas" }, { status: 500 });
+  if (!apiKey) {
+    return NextResponse.json(missingApiKeyPayload, { status: 503 });
   }
 
-  return NextResponse.json(
-    { success: true, data: fallbackCommunes[regionCode] || [], source: "fallback" },
-    { headers: noStoreHeaders },
-  );
+  try {
+    const catalog = await fetchAvaluoRegions(apiKey);
+    const region = catalog.find(
+      (item) => String(item.codigo).padStart(2, "0") === regionCode,
+    );
+
+    if (!region) {
+      return errorResponse(
+        "La región no existe en el catálogo de SII Mapas / Avalúos.",
+        404,
+      );
+    }
+
+    if (region.comunas.length === 0) {
+      return errorResponse(
+        "BaseAPI no devolvió comunas SII Mapas para la región seleccionada.",
+        502,
+        "BASEAPI_EMPTY_COMMUNES",
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: region.comunas,
+      source: "baseapi",
+      catalog: "sii-avaluo",
+    });
+  } catch (error) {
+    const baseApiError = getBaseApiCatalogError(error);
+
+    if (baseApiError) {
+      return NextResponse.json(baseApiError.payload, {
+        status: baseApiError.status,
+      });
+    }
+
+    console.error(
+      `Error cargando comunas SII Mapas de la región ${regionCode}:`,
+      error,
+    );
+
+    return errorResponse(
+      "No fue posible conectar con BaseAPI para cargar las comunas.",
+      502,
+      "BASEAPI_NETWORK_ERROR",
+    );
+  }
 }
