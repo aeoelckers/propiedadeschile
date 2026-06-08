@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import type { AddressSearchResponse } from "@/lib/baseapi";
 import { readResponseBody } from "@/lib/baseapi-response";
 import { sendSearchNotification } from "@/lib/notifications";
+import {
+  BASEAPI_URL,
+  getBaseApiHeaders,
+  getBaseApiKey,
+  isDevelopmentWithoutApiKey,
+  missingApiKeyPayload,
+} from "@/lib/baseapi-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +25,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const apiKey = process.env.BASEAPI_KEY;
+  const apiKey = getBaseApiKey();
 
-  if (!apiKey) {
+  if (isDevelopmentWithoutApiKey(apiKey)) {
     const mockResponse: AddressSearchResponse = {
       total: 2,
       predios: [
@@ -64,18 +71,19 @@ export async function GET(request: Request) {
     return NextResponse.json(mockResponse);
   }
 
+  if (!apiKey) {
+    return NextResponse.json(missingApiKeyPayload, { status: 503 });
+  }
+
   const params = new URLSearchParams({ comuna, calle });
   if (numero) params.set("numero", numero);
 
   try {
     const response = await fetch(
-      `https://api.baseapi.cl/api/v1/sii/avaluo/buscar?${params.toString()}`,
+      `${BASEAPI_URL}/sii/avaluo/buscar?${params.toString()}`,
       {
         cache: "no-store",
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
+        headers: getBaseApiHeaders(apiKey),
       },
     );
     const data = await readResponseBody(response);
@@ -92,7 +100,8 @@ export async function GET(request: Request) {
         return NextResponse.json(
           {
             code: "BASEAPI_ADDRESS_FORBIDDEN",
-            error: "BaseAPI rechazó temporalmente la búsqueda por dirección para la API key configurada.",
+            error:
+              "BaseAPI rechazó temporalmente la búsqueda por dirección para la API key configurada.",
           },
           { status: 403 },
         );

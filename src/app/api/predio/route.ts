@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { readResponseBody } from "@/lib/baseapi-response";
 import { unwrapData, type Property } from "@/lib/baseapi";
 import { sendSearchNotification } from "@/lib/notifications";
+import {
+  BASEAPI_URL,
+  getBaseApiHeaders,
+  getBaseApiKey,
+  isDevelopmentWithoutApiKey,
+  missingApiKeyPayload,
+} from "@/lib/baseapi-server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,12 +17,15 @@ export async function GET(request: Request) {
   const predio = searchParams.get("predio");
 
   if (!comuna || !manzana || !predio) {
-    return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Faltan parámetros requeridos" },
+      { status: 400 },
+    );
   }
 
-  const apiKey = process.env.BASEAPI_KEY;
+  const apiKey = getBaseApiKey();
 
-  if (!apiKey) {
+  if (isDevelopmentWithoutApiKey(apiKey)) {
     return NextResponse.json({
       rol: `${manzana}-${predio}`,
       comuna: {
@@ -54,17 +64,18 @@ export async function GET(request: Request) {
     });
   }
 
+  if (!apiKey) {
+    return NextResponse.json(missingApiKeyPayload, { status: 503 });
+  }
+
   const params = new URLSearchParams({ comuna, manzana, predio });
 
   try {
-    const params = new URLSearchParams({ comuna, manzana, predio });
     const response = await fetch(
-      `https://api.baseapi.cl/api/v1/sii/avaluo/predio?${params.toString()}`,
+      `${BASEAPI_URL}/sii/avaluo/predio?${params.toString()}`,
       {
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
+        cache: "no-store",
+        headers: getBaseApiHeaders(apiKey),
       },
     );
     const data = await readResponseBody(response);
@@ -96,6 +107,9 @@ export async function GET(request: Request) {
       details: "Falló la conexión hacia BaseAPI",
       request,
     });
-    return NextResponse.json({ error: "Error de red al consultar el SII" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error de red al consultar el SII" },
+      { status: 500 },
+    );
   }
 }
