@@ -1,33 +1,76 @@
 import { NextResponse } from "next/server";
-import { readResponseBody } from "@/lib/baseapi-response";
+import type { Region } from "@/lib/baseapi";
+import { extractArray, readResponseBody } from "@/lib/baseapi-response";
+import {
+  BASEAPI_URL,
+  getBaseApiHeaders,
+  getBaseApiKey,
+  isDevelopmentWithoutApiKey,
+  missingApiKeyPayload,
+} from "@/lib/baseapi-server";
+import { fallbackRegions } from "@/lib/catalog";
 
-const REGIONES_URL = "https://api.baseapi.cl/api/v1/sii/datos/regiones";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const apiKey = process.env.BASEAPI_KEY;
+  const apiKey = getBaseApiKey();
 
-  if (!apiKey) {
+  if (isDevelopmentWithoutApiKey(apiKey)) {
     return NextResponse.json({
       success: true,
-      data: [
-        { codigo: "13", nombre: "REGION METROPOLITANA DE SANTIAGO" },
-        { codigo: "05", nombre: "REGION DE VALPARAISO" },
-      ],
+      data: fallbackRegions,
+      source: "fallback",
     });
   }
 
-  try {
-    const response = await fetch(REGIONES_URL, {
-      headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await readResponseBody(response);
+  if (!apiKey) {
+    return NextResponse.json(missingApiKeyPayload, { status: 503 });
+  }
 
-    return NextResponse.json(data, { status: response.status });
+  try {
+    const response = await fetch(`${BASEAPI_URL}/sii/datos/regiones`, {
+      cache: "no-store",
+      headers: getBaseApiHeaders(apiKey),
+    });
+    const payload = await readResponseBody(response);
+
+    if (!response.ok) {
+      return NextResponse.json(payload, { status: response.status });
+    }
+
+    const regions = extractArray<Region>(payload)
+      .filter((region) => region.codigo !== undefined && Boolean(region.nombre))
+      .map((region) => ({
+        ...region,
+        codigo: String(region.codigo).padStart(2, "0"),
+      }));
+
+    if (regions.length === 0) {
+      return NextResponse.json(
+        {
+          code: "BASEAPI_INVALID_CATALOG",
+          error: "BaseAPI no devolvió un listado de regiones válido.",
+        },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: regions,
+      source: "baseapi",
+    });
   } catch (error) {
-    console.error("Error fetching regiones:", error);
-    return NextResponse.json({ error: "Error fetching regiones" }, { status: 500 });
+    console.error(
+      "Error cargando regiones desde Datos Auxiliares de BaseAPI:",
+      error,
+    );
+    return NextResponse.json(
+      {
+        code: "BASEAPI_NETWORK_ERROR",
+        error: "No fue posible conectar con BaseAPI para cargar las regiones.",
+      },
+      { status: 502 },
+    );
   }
 }

@@ -1,92 +1,83 @@
 import { NextResponse } from "next/server";
-import { readResponseBody } from "@/lib/baseapi-response";
+import type { Comuna } from "@/lib/baseapi";
+import { extractArray, readResponseBody } from "@/lib/baseapi-response";
+import {
+  BASEAPI_URL,
+  getBaseApiHeaders,
+  getBaseApiKey,
+  isDevelopmentWithoutApiKey,
+  missingApiKeyPayload,
+} from "@/lib/baseapi-server";
+import { fallbackCommunes } from "@/lib/catalog";
 
-function hasComunasPayload(data: unknown) {
-  if (Array.isArray(data)) return data.length > 0;
-  if (typeof data !== "object" || data === null) return false;
-
-  const payload = data as Record<string, unknown>;
-  if (payload.success) return true;
-  if (Array.isArray(payload.comunas)) return true;
-  if (Array.isArray(payload.data)) return true;
-
-  return (
-    typeof payload.data === "object" &&
-    payload.data !== null &&
-    Array.isArray((payload.data as Record<string, unknown>).comunas)
-  );
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const regionCodigo = searchParams.get("region");
-  const apiKey = process.env.BASEAPI_KEY;
+  const regionCode = new URL(request.url).searchParams
+    .get("region")
+    ?.trim()
+    .padStart(2, "0");
 
-  if (!regionCode) {
-    return NextResponse.json({ error: "Falta el código de región." }, { status: 400, headers: noStoreHeaders });
+  if (!regionCode || !/^\d{2}$/.test(regionCode)) {
+    return NextResponse.json(
+      { error: "El código de región debe tener uno o dos dígitos." },
+      { status: 400 },
+    );
   }
 
-  if (!apiKey) {
-    if (regionCodigo === "13") {
-      return NextResponse.json({
-        success: true,
-        data: [
-          { codigo: "15108", nombre: "LAS CONDES" },
-          { codigo: "15101", nombre: "SANTIAGO" },
-        ],
-      });
-    }
+  const apiKey = getBaseApiKey();
 
+  if (isDevelopmentWithoutApiKey(apiKey)) {
     return NextResponse.json({
       success: true,
-      data: [{ codigo: "05101", nombre: "VALPARAISO" }],
+      data: fallbackCommunes[regionCode] ?? [],
+      source: "fallback",
     });
   }
 
-  const urls = regionCodigo
-    ? [
-        `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
-        `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
-        "https://api.baseapi.cl/api/v1/sii/datos/comunas",
-      ]
-    : ["https://api.baseapi.cl/api/v1/sii/datos/comunas"];
-
-  try {
-    for (const url of urls) {
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await readResponseBody(response);
-        if (hasComunasPayload(data)) {
-          return NextResponse.json(data);
-        }
-      }
-
-      const communes = normalizeCommunes(payload, regionCode)
-        .filter((commune) => commune.codigo !== undefined && Boolean(commune.nombre))
-        .map((commune) => ({ codigo: String(commune.codigo), nombre: commune.nombre }));
-
-      if (communes.length > 0) {
-        return NextResponse.json({ success: true, data: communes, source: "baseapi" }, { headers: noStoreHeaders });
-      }
-    } catch (error) {
-      console.error(`Error consultando comunas en ${url}:`, error);
-    }
-
-    return NextResponse.json({ error: "No se encontraron comunas" }, { status: 404 });
-  } catch (error) {
-    console.error("Error fetching comunas:", error);
-    return NextResponse.json({ error: "Error fetching comunas" }, { status: 500 });
+  if (!apiKey) {
+    return NextResponse.json(missingApiKeyPayload, { status: 503 });
   }
 
-  return NextResponse.json(
-    { success: true, data: fallbackCommunes[regionCode] || [], source: "fallback" },
-    { headers: noStoreHeaders },
-  );
+  try {
+    const response = await fetch(
+      `${BASEAPI_URL}/sii/datos/regiones/${regionCode}/comunas`,
+      {
+        cache: "no-store",
+        headers: getBaseApiHeaders(apiKey),
+      },
+    );
+    const payload = await readResponseBody(response);
+
+    if (!response.ok) {
+      return NextResponse.json(payload, { status: response.status });
+    }
+
+    const communes = extractArray<Comuna>(payload, "comunas")
+      .filter(
+        (commune) => commune.codigo !== undefined && Boolean(commune.nombre),
+      )
+      .map((commune) => ({
+        ...commune,
+        codigo: String(commune.codigo).padStart(5, "0"),
+      }));
+
+    return NextResponse.json({
+      success: true,
+      data: communes,
+      source: "baseapi",
+    });
+  } catch (error) {
+    console.error(
+      `Error cargando comunas de la región ${regionCode} desde BaseAPI:`,
+      error,
+    );
+    return NextResponse.json(
+      {
+        code: "BASEAPI_NETWORK_ERROR",
+        error: "No fue posible conectar con BaseAPI para cargar las comunas.",
+      },
+      { status: 502 },
+    );
+  }
 }
