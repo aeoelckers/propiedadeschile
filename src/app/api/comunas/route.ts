@@ -44,11 +44,14 @@ export async function GET(request: Request) {
     );
   }
 
-  const urls = [
-    `https://api.baseapi.cl/api/v1/sii/datos/regiones/${encodeURIComponent(regionCode)}/comunas`,
-    `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${encodeURIComponent(regionCode)}`,
-    "https://api.baseapi.cl/api/v1/sii/datos/comunas",
-  ];
+  try {
+    const urls = regionCodigo
+      ? [
+          `https://api.baseapi.cl/api/v1/sii/datos/regiones/${regionCodigo}/comunas`,
+          `https://api.baseapi.cl/api/v1/sii/datos/comunas?region=${regionCodigo}`,
+          `https://api.baseapi.cl/api/v1/sii/datos/comunas`
+        ]
+      : ['https://api.baseapi.cl/api/v1/sii/datos/comunas'];
 
   for (const url of urls) {
     try {
@@ -59,10 +62,13 @@ export async function GET(request: Request) {
           "Content-Type": "application/json",
         },
       });
-      const payload = await readResponseBody(response);
-      if (!response.ok) {
-        console.warn(`BaseAPI comunas respondió ${response.status} en ${url}`);
-        continue;
+
+      if (response.ok) {
+        const data = await response.json();
+        // Return first successful response that has data
+        if (data.success || Array.isArray(data) || data.comunas || (data.data && Array.isArray(data.data.comunas))) {
+          return NextResponse.json(data);
+        }
       }
 
       const communes = normalizeCommunes(payload, regionCode)
@@ -75,6 +81,10 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error(`Error consultando comunas en ${url}:`, error);
     }
+
+    return NextResponse.json({ error: 'No se encontraron comunas' }, { status: 404 });
+  } catch {
+    return NextResponse.json({ error: 'Error fetching comunas' }, { status: 500 });
   }
 
   return NextResponse.json(

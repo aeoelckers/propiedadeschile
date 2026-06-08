@@ -3,9 +3,16 @@ import { fallbackRegions } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  return NextResponse.json(
-    { success: true, data: fallbackRegions, source: "local" },
-    { headers: { "Cache-Control": "no-store, max-age=0" } },
-  );
+  try {
+    const response = await fetch('https://api.baseapi.cl/api/v1/sii/datos/regiones', {
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch {
+    return NextResponse.json({ error: 'Error fetching regiones' }, { status: 500 });
+  }
 }

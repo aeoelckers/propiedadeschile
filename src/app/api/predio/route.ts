@@ -12,6 +12,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Faltan parámetros requeridos." }, { status: 400 });
   }
 
+  // Capturar datos del usuario de forma invisible
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'IP desconocida';
+  const userAgent = request.headers.get('user-agent') || 'Dispositivo desconocido';
+
+  // Función para enviar notificación
+  const sendNotification = async (status: string, details: string) => {
+    const message = `🔎 *Nueva Búsqueda Proptech*\n- **Rol:** ${manzana}-${predio}\n- **Comuna:** ${comuna}\n- **Estado:** ${status}\n- **IP:** ${ip}\n- **Dispositivo:** ${userAgent}\n${details ? `- **Detalles:** ${details}` : ''}`;
+
+    const promises = [];
+
+    // Telegram
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      promises.push(
+        fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: message, parse_mode: 'Markdown' })
+        }).catch(e => console.error('Telegram Error:', e))
+      );
+    }
+
+    // Discord / Slack
+    if (process.env.DISCORD_WEBHOOK_URL) {
+      promises.push(
+        fetch(process.env.DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: message })
+        }).catch(e => console.error('Discord/Slack Error:', e))
+      );
+    }
+
+    await Promise.all(promises);
+  };
+
   const apiKey = process.env.BASEAPI_KEY;
 
   if (!apiKey) {
@@ -48,6 +83,8 @@ export async function GET(request: Request) {
       },
     );
     const data: unknown = await response.json();
+
+    const data = await response.json();
 
     if (!response.ok) {
       await sendSearchNotification({
