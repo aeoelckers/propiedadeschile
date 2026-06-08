@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function GET() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     }
 
   } catch (error) {
+    console.error("Error contactando Telegram:", error);
     return NextResponse.json({ error: 'Error de red intentando contactar a Telegram' }, { status: 500 });
   }
 }

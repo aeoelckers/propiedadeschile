@@ -1,44 +1,88 @@
 # 🏢 Proptech MVP - Buscador Catastral SII
 
-Este es el MVP inicial de la plataforma Proptech para la búsqueda de información catastral y avalúos de propiedades en Chile, conectada a la API oficial de **BaseAPI**.
+MVP para buscar información catastral, avalúos y superficies de propiedades en Chile mediante la API oficial de **BaseAPI**.
 
-## ✨ Estado Actual (Funcionando 100% Estable)
+## ✨ Estado actual
 
-El proyecto actualmente cuenta con las siguientes características operativas en el entorno de producción (Vercel):
+### Búsqueda por dirección
 
-- ✅ **Búsqueda por Rol (Manzana y Predio):** 
-  - Selector dinámico de Región.
-  - Selector dinámico de Comuna (carga desde BaseAPI solo la comuna seleccionada).
-  - Inputs numéricos para Manzana y Predio.
-- ✅ **Tarjeta de Propiedad (Property Card):**
-  - Mapeo exacto de los datos devueltos por el SII.
-  - Formato limpio (blanco y azul) con separaciones visuales para: Identificación, Avalúos y Superficie.
-- ✅ **Manejo de Errores:**
-  - Prevención de crasheos en el lado del cliente ante cambios de formato en la API.
-  - Notificaciones en pantalla (UI) en caso de fallos.
-- ✅ **Sistema de Notificaciones (Webhook):**
-  - Envío automático de notificaciones a Telegram / Discord cada vez que un usuario realiza una consulta.
-  - Captura invisible de datos: IP, User-Agent, Región, Rol y Resultado de la Búsqueda.
-  - Ruta `/api/test-bot` para verificar el estado de las notificaciones sin gastar consultas de BaseAPI.
+- Selector de Región disponible localmente y carga de comunas desde los endpoints auxiliares de BaseAPI. Si BaseAPI rechaza el catálogo, se utiliza un respaldo local para las comunas principales de las regiones Metropolitana y Valparaíso.
+- Campos de Calle y Número; el número es opcional para permitir búsquedas amplias.
+- Consulta al endpoint `GET /api/v1/sii/avaluo/buscar` a través de `/api/buscar`.
+- Tabla responsive con Rol, Dirección, Destino, Superficie y Avalúo Total.
+- Apertura inmediata de la ficha completa al seleccionar un resultado, sin realizar una segunda consulta a BaseAPI.
 
----
+### Búsqueda por Rol SII
 
-## 🚀 PRÓXIMO AVANCE (Next Steps)
+- Pestaña independiente para consultar por Comuna, Manzana y Predio.
+- Consulta al endpoint `GET /api/v1/sii/avaluo/predio` a través de `/api/predio`.
 
-Para la próxima sesión de trabajo, el objetivo principal es implementar el motor de **Búsqueda por Dirección**.
+### Ficha de propiedad
 
-### Funcionalidades a desarrollar:
-1. **Pestañas en la UI:** Agregar un switch en la parte superior del formulario para alternar entre `📍 Dirección` y `# Rol SII`.
-2. **Nuevos Campos:** En la pestaña de Dirección, mantener Región/Comuna, pero reemplazar Manzana/Predio por inputs de `Calle` y `Número`.
-3. **Endpoint `/api/buscar`:** Conectar el frontend con el endpoint `GET /api/v1/sii/avaluo/buscar` de BaseAPI.
-4. **Tabla de Resultados:** Mostrar una lista de coincidencias para esa dirección (Rol, Destino, Superficie, Avalúo) en una tabla estilo "Lista de Resultados".
-5. **Apertura Rápida:** Al hacer clic en un resultado de la tabla, mostrar la `PropertyCard` existente inmediatamente, aprovechando que el endpoint `/buscar` ya incluye la data completa (evitando así un doble cobro por consulta).
+- Identificación del predio, dirección, comuna, rol, destino, ubicación y período.
+- Avalúo total, afecto y exento.
+- Superficie de terreno y construida.
+- Área homogénea y datos de reavalúo.
+- Acceso a la ubicación en OpenStreetMap cuando BaseAPI entrega coordenadas.
 
----
+### Notificaciones
 
-## 🛠️ Tecnologías Usadas
-- Next.js (App Router)
-- React
-- Tailwind CSS
-- Vercel (Hosting)
-- BaseAPI (Data Source)
+- Notificación opcional a Telegram y Discord/Slack por cada consulta real.
+- Ruta `/api/test-bot` para verificar la integración con Telegram sin consumir consultas de BaseAPI.
+
+## 🛠️ Tecnologías
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- BaseAPI
+- Vercel
+
+## 🚀 Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+
+Si `BASEAPI_KEY` no está configurada, los endpoints devuelven datos mock para poder probar ambos flujos sin consumir consultas reales.
+
+## 🔐 Variables de entorno
+
+Crea un archivo `.env.local` en la raíz:
+
+```bash
+BASEAPI_KEY=tu_api_key
+
+# Opcionales
+TELEGRAM_BOT_TOKEN=tu_bot_token
+TELEGRAM_CHAT_ID=tu_chat_id
+DISCORD_WEBHOOK_URL=tu_webhook
+```
+
+- `BASEAPI_KEY`: habilita consultas reales de regiones, comunas, direcciones y predios.
+- `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`: habilitan notificaciones por Telegram.
+- `DISCORD_WEBHOOK_URL`: habilita notificaciones por Discord o un webhook compatible.
+
+## 📚 Endpoints internos
+
+| Endpoint | Descripción |
+| --- | --- |
+| `/api/regiones` | Catálogo local estable de las 16 regiones de Chile |
+| `/api/comunas?region=13` | Comunas y códigos SII con respaldo local ante errores de BaseAPI |
+| `/api/buscar?comuna=13114&calle=EL%20CONVENTO&numero=715` | Búsqueda de predios por dirección |
+| `/api/predio?comuna=13101&manzana=1&predio=1` | Consulta de un predio por Rol SII |
+| `/api/test-bot` | Prueba de notificación por Telegram |
+
+## Próximos avances sugeridos
+
+1. Integrar un visor catastral con las capas WMS que BaseAPI entrega por comuna.
+2. Consultar el valor oficial por m² del Área Homogénea y mostrarlo en la ficha.
+3. Agregar paginación o filtros cuando una calle devuelva muchos predios.
+4. Incorporar pruebas automatizadas para normalización de respuestas y flujos de búsqueda.
+5. Añadir un aviso de privacidad para el registro opcional de telemetría de consultas.
+
+Documentación utilizada: [BaseAPI — Mapas / Avalúos](https://baseapi.cl/docs/mapas--avaluos).
