@@ -1,18 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { fallbackRegions } from "@/lib/catalog";
 
-export async function GET() {
-  const apiKey = process.env.BASEAPI_KEY;
-
-  if (!apiKey) {
-    // Mock data para probar la UI
-    return NextResponse.json({
-      success: true,
-      data: [
-        { codigo: "13", nombre: "REGION METROPOLITANA DE SANTIAGO" },
-        { codigo: "05", nombre: "REGION DE VALPARAISO" }
-      ]
-    });
-  }
+export const dynamic = "force-dynamic";
 
   try {
     const response = await fetch('https://api.baseapi.cl/api/v1/sii/datos/regiones', {
